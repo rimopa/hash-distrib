@@ -1,5 +1,5 @@
-#ifndef EV_HASH_HASH_API_TYPE
-#define EV_HASH_HASH_API_TYPE
+#ifndef HASH_DISTRIB_HASH_API_TYPE
+#define HASH_DISTRIB_HASH_API_TYPE
 
 #include <stddef.h>
 #define HASH_CHUNK_SIZE 4096

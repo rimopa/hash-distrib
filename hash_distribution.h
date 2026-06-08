@@ -1,5 +1,5 @@
-#ifndef EV_HASH_DISTRIB
-#define EV_HASH_DISTRIB
+#ifndef HASH_DISTRIB_HASH_DISTRIB
+#define HASH_DISTRIB_HASH_DISTRIB
 
 #include <stdio.h>
 #include <stdint.h>
