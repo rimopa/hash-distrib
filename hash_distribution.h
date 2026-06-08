@@ -11,17 +11,17 @@
 typedef struct Node
 {
     unsigned char *key_pointer;
-    uint32_t count;
+    unsigned long long count;
     struct Node *next;
 } Node;
 
 // Use https://github.com/troydhanson/uthash for count of counts hash table, Claude Opus 4.6's recommendation
 typedef struct
 {
-    uint32_t id;         // Number of times a hash appears
-    uint32_t num_values; // Number of hashes that appear that many times
-    uint8_t id_digits;
-    uint8_t num_values_digits;
+    unsigned long int id;         // Number of times a hash appears
+    unsigned long int num_values; // Number of hashes that appear that many times
+    unsigned int id_digits;
+    unsigned int num_values_digits;
     UT_hash_handle hh;
 } CountEntry;
 
@@ -32,9 +32,9 @@ int maxint(int a, int b)
     return b;
 }
 
-int8_t get_digit_count(int n) // Inspired by https://www.programiz.com/c-programming/examples/digits-count
+unsigned int get_digit_count(int n) // Inspired by https://www.programiz.com/c-programming/examples/digits-count
 {
-    uint8_t c = 0;
+    unsigned int c = 0;
     do
     {
         n /= 10;
@@ -59,9 +59,9 @@ Node *new_node(unsigned char *hash_key_pointer)
     return new;
 }
 
-void keys_table_add(Node **keys_table, uint16_t keys_table_size, size_t key_size, unsigned char *hash_key_pointer)
+void keys_table_add(Node **keys_table, unsigned int keys_table_size, size_t key_size, unsigned char *hash_key_pointer)
 {
-    uint16_t val;
+    unsigned int val;
     memcpy(&val, hash_key_pointer, sizeof(val));
     size_t index = val % keys_table_size;
 
@@ -107,16 +107,16 @@ void detroy_keys_table(Node **keys_table, unsigned int keys_table_size)
 
 // Count of counts table
 
-uint8_t sort_by_id(const CountEntry *a, const CountEntry *b)
+unsigned int sort_by_id(const CountEntry *a, const CountEntry *b)
 {
     return (a->id - b->id);
 }
-uint8_t sort_by_num_values(const CountEntry *a, const CountEntry *b)
+unsigned int sort_by_num_values(const CountEntry *a, const CountEntry *b)
 {
     return (a->num_values - b->num_values);
 }
 
-void count_of_counts_add(CountEntry **count_of_counts, uint32_t key, unsigned int *most_digits)
+void count_of_counts_add(CountEntry **count_of_counts, unsigned long long key, unsigned int *most_digits)
 {
     CountEntry *s;
     HASH_FIND_INT(*count_of_counts, &key, s);
@@ -139,7 +139,7 @@ void count_of_counts_add(CountEntry **count_of_counts, uint32_t key, unsigned in
     }
 }
 
-CountEntry *create_count_of_counts(Node **keys_table, unsigned int keys_table_size, unsigned int *node_count, unsigned int *most_digits)
+CountEntry *create_count_of_counts(Node **keys_table, unsigned int keys_table_size, unsigned long long *node_count, unsigned int *most_digits)
 {
     CountEntry *count_of_counts = NULL; // empty map
     for (unsigned int i = 0; i < keys_table_size; i++)
@@ -174,14 +174,14 @@ void destroy_count_of_counts(CountEntry *count_of_counts)
 
 // Analysis
 
-void printbar(uint8_t width)
+void printbar(unsigned int width)
 {
-    for (uint8_t i = 0; i < width; i++)
+    for (unsigned int i = 0; i < width; i++)
         printf("-");
     printf("\n");
 }
 
-void analyse(HashAPI hash_api, CountEntry **count_of_counts, uint32_t node_count, unsigned int hash_count, unsigned int nfiles, uint8_t most_digits)
+void analyse(HashAPI hash_api, CountEntry **count_of_counts, unsigned long long node_count, unsigned int hash_count, unsigned int nfiles, unsigned int most_digits)
 {
     CountEntry *count_entry, *tmp; // Variables for iteraton
 
@@ -199,15 +199,15 @@ void analyse(HashAPI hash_api, CountEntry **count_of_counts, uint32_t node_count
     printf("[Column 1] number of keys were returned [Column 2] number of times\n");
 
     HASH_SORT(*count_of_counts, sort_by_id);
-    const uint8_t width = most_digits * 2 + 3;
+    const unsigned int width = most_digits * 2 + 3;
     printbar(width);
     HASH_ITER(hh, *count_of_counts, count_entry, tmp)
     {
         printf("|%i", count_entry->num_values);
-        for (uint8_t i = 0; i < most_digits - count_entry->num_values_digits; i++)
+        for (unsigned int i = 0; i < most_digits - count_entry->num_values_digits; i++)
             printf(" ");
         printf("|%i", count_entry->id);
-        for (uint8_t i = 0; i < most_digits - count_entry->id_digits; i++)
+        for (unsigned int i = 0; i < most_digits - count_entry->id_digits; i++)
             printf(" ");
         printf("|\n");
     }

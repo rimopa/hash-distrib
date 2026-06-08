@@ -84,13 +84,13 @@ void read_args(int argc, char *argv[], char **hashpath, char **readerpath, int *
 
 void read_filepaths(int argc, char *argv[], int nfiles, const char *filepaths[])
 {
-    for (uint32_t i = 0; i < nfiles; i++)
+    for (unsigned int i = 0; i < nfiles; i++)
     {
         filepaths[i] = argv[optind + i];
     }
 }
 
-unsigned int get_file_size(FILE *file_pointer)
+uint64_t get_file_size(FILE *file_pointer)
 { // Get file size and rewind file pointer
     fseek(file_pointer, 0, SEEK_END);
     uint64_t file_size = ftell(file_pointer);
@@ -141,7 +141,7 @@ bool process_file(HashAPI hash_api, void *ctx, Node **keys_table, unsigned int k
     return true;
 }
 
-void process_files(HashAPI hash_api, Node **keys_table, unsigned int keys_table_size, const char *filepaths[], unsigned int nfiles, unsigned int *hash_count)
+void process_files(HashAPI hash_api, Node **keys_table, unsigned int keys_table_size, const char *filepaths[], unsigned int nfiles, unsigned long long *hash_count)
 {
     void *ctx = malloc(hash_api.ctx_size);
 
@@ -176,15 +176,15 @@ int main(int argc, char *argv[])
         return 5;
     }
 
-    uint32_t hash_count = 0;
+    unsigned long long hash_count = 0;
 
-    const uint32_t keys_table_size = hash_api.out_size * hash_api.out_size;
+    const unsigned long long keys_table_size = hash_api.out_size * hash_api.out_size;
     Node **keys_table = create_keys_table(keys_table_size);
 
     process_files(hash_api, keys_table, keys_table_size, filepaths, nfiles, &hash_count);
 
     unsigned int most_digits = 0;
-    uint32_t node_count = 0;
+    unsigned long long node_count = 0;
 
     CountEntry *count_of_counts = create_count_of_counts(keys_table, keys_table_size, &node_count, &most_digits);
 
