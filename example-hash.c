@@ -32,7 +32,6 @@ void update(void *ctx,
 {
 
     u8p5_ctx *context = (u8p5_ctx *)ctx;
-    unsigned int b = 0;
     if (len > 0)
     {
         context->words[0] = data[0];
@@ -44,7 +43,7 @@ void final(void *ctx,
            unsigned char *out)
 {
     u8p5_ctx *context = (u8p5_ctx *)ctx;
-    RETURN_TYPE r = rand() % 50;
+    RETURN_TYPE r = rand() % 50 + context->words[0];
 
     *out = r;
 }
