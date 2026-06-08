@@ -133,6 +133,7 @@ bool process_file(HashAPI hash_api, void *ctx, Node **keys_table, unsigned int k
         perror(path);
         fprintf(stderr, "Could not open %s\n", path);
         printf("Skipping...\n");
+        free(hash_key);
         return false;
     }
     binary_hash(hash_api, ctx, file_pointer, hash_key);
