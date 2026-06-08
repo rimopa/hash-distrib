@@ -107,11 +107,15 @@ void detroy_keys_table(Node **keys_table, unsigned int keys_table_size)
 
 // Count of counts table
 
-unsigned int sort_by_id(const CountEntry *a, const CountEntry *b)
+int sort_by_id(const CountEntry *a, const CountEntry *b)
 {
-    return (a->id - b->id);
+    if (a->id < b->id)
+        return -1;
+    if (a->id > b->id)
+        return 1;
+    return 0;
 }
-unsigned int sort_by_num_values(const CountEntry *a, const CountEntry *b)
+int sort_by_num_values(const CountEntry *a, const CountEntry *b)
 {
     return (a->num_values - b->num_values);
 }
