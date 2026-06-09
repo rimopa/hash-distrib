@@ -1,29 +1,10 @@
-#ifndef HASH_DISTRIB_HASH_DISTRIB
-#define HASH_DISTRIB_HASH_DISTRIB
-
+#include "hash_distribution.h"
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include "uthash/src/uthash.h"
 
 #include "hash_api.h"
-
-typedef struct Node
-{
-    unsigned char *key_pointer;
-    unsigned long long count;
-    struct Node *next;
-} Node;
-
-// Use https://github.com/troydhanson/uthash for count of counts hash table, Claude Opus 4.6's recommendation
-typedef struct
-{
-    unsigned long int id;         // Number of times a hash appears
-    unsigned long int num_values; // Number of hashes that appear that many times
-    unsigned int id_digits;
-    unsigned int num_values_digits;
-    UT_hash_handle hh;
-} CountEntry;
 
 int maxint(int a, int b)
 {
@@ -185,7 +166,7 @@ void printbar(unsigned int width)
     printf("\n");
 }
 
-void analyse(HashAPI hash_api, CountEntry **count_of_counts, unsigned long long node_count, unsigned int hash_count, unsigned int nfiles, unsigned int most_digits)
+void analyse(HashAPI hash_api, CountEntry **count_of_counts, unsigned long long node_count, unsigned long long hash_count, unsigned int nfiles, unsigned int most_digits)
 {
     CountEntry *count_entry, *tmp; // Variables for iteraton
 
@@ -218,5 +199,3 @@ void analyse(HashAPI hash_api, CountEntry **count_of_counts, unsigned long long 
     printbar(width);
     printf("\n");
 }
-
-#endif

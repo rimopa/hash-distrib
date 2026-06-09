@@ -179,7 +179,7 @@ int main(int argc, char *argv[])
 
     unsigned long long hash_count = 0;
 
-    const unsigned long long keys_table_size = hash_api.out_size * hash_api.out_size;
+    const unsigned int keys_table_size = hash_api.out_size * hash_api.out_size;
     Node **keys_table = create_keys_table(keys_table_size);
 
     process_files(hash_api, keys_table, keys_table_size, filepaths, nfiles, &hash_count);

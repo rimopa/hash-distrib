@@ -15,10 +15,11 @@ typedef struct Node
     struct Node *next;
 } Node;
 
+// Use https://github.com/troydhanson/uthash for count of counts hash table, Claude Opus 4.6's recommendation
 typedef struct
 {
-    unsigned long int id;
-    unsigned long int num_values;
+    unsigned long int id;         // Number of times a hash appears
+    unsigned long int num_values; // Number of hashes that appear that many times
     unsigned int id_digits;
     unsigned int num_values_digits;
     UT_hash_handle hh;
@@ -35,6 +36,6 @@ CountEntry *create_count_of_counts(Node **keys_table, unsigned int keys_table_si
 void destroy_count_of_counts(CountEntry *count_of_counts);
 
 // Analysis
-void analyse(HashAPI hash_api, CountEntry **count_of_counts, unsigned long long node_count, unsigned int hash_count, unsigned int nfiles, unsigned int most_digits);
+void analyse(HashAPI hash_api, CountEntry **count_of_counts, unsigned long long node_count, unsigned long long hash_count, unsigned int nfiles, unsigned int most_digits);
 
 #endif
