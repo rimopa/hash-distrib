@@ -70,7 +70,7 @@ void keys_table_add(Node **keys_table, unsigned int keys_table_size, size_t key_
     }
 }
 
-void detroy_keys_table(Node **keys_table, unsigned int keys_table_size)
+void destroy_keys_table(Node **keys_table, unsigned int keys_table_size)
 {
     for (unsigned int i = 0; i < keys_table_size; i++)
     {
@@ -166,11 +166,11 @@ void printbar(unsigned int width)
     printf("\n");
 }
 
-void analyse(HashAPI hash_api, CountEntry **count_of_counts, unsigned long long node_count, unsigned long long hash_count, unsigned int nfiles, unsigned int most_digits)
+void analyse(HashAPI hash_api, CountEntry **count_of_counts, unsigned long long node_count, unsigned int hash_count, unsigned int nfiles, unsigned int most_digits)
 {
     CountEntry *count_entry, *tmp; // Variables for iteraton
 
-    printf("----------------------\n");
+    printbar(22);
     printf("Distribution analysis:\n");
     printf("\n");
     printf("%i/%i hashes returned.\n", hash_count, nfiles);

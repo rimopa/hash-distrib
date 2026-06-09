@@ -2,7 +2,6 @@
 #define HASH_DISTRIB_HASH_API_TYPE
 
 #include <stddef.h>
-#define HASH_CHUNK_SIZE 4096
 
 typedef struct
 {

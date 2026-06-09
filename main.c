@@ -11,7 +11,7 @@
 #include "hash_api.h"
 
 #define HASH_API_FUNC_NAME "hash_api"
-#define MAX 1024
+#define HASH_CHUNK_SIZE 4096
 
 static void usage(const char *prog)
 {
@@ -61,7 +61,7 @@ void read_args(int argc, char *argv[], char **hashpath, char **readerpath, unsig
     *hashpath = argv[1];
     *readerpath = NULL;
 
-    // Read options, I learnt the syntax from Claude Sonnet 4.6:
+    // Read options. I learnt the syntax from Claude Sonnet 4.6:
     optind = 2;
     int opt;
     while ((opt = getopt(argc, argv, "r:h")) != -1)
@@ -90,17 +90,19 @@ void read_filepaths(char *argv[], int nfiles, const char *filepaths[])
     }
 }
 
-uint64_t get_file_size(FILE *file_pointer)
-{ // Get file size and rewind file pointer
+// Get file size and rewind file pointer
+long get_file_size(FILE *file_pointer)
+{
     fseek(file_pointer, 0, SEEK_END);
-    uint64_t file_size = ftell(file_pointer);
+    long file_size = ftell(file_pointer);
     rewind(file_pointer);
     return file_size;
 }
 
-void binary_hash(HashAPI hash_api, void *ctx, FILE *file_pointer, unsigned char *hash_key)
+int binary_hash(HashAPI hash_api, void *ctx, FILE *file_pointer, unsigned char *hash_key)
 {
-    uint64_t file_size = get_file_size(file_pointer);
+    long file_size = get_file_size(file_pointer);
+
     unsigned int full_chunk_count = file_size / HASH_CHUNK_SIZE;
 
     hash_api.init(ctx);
@@ -121,6 +123,8 @@ void binary_hash(HashAPI hash_api, void *ctx, FILE *file_pointer, unsigned char 
         hash_api.update(ctx, buffer, final_read_size);
     }
     hash_api.final(ctx, hash_key);
+
+    return 0;
 }
 
 bool process_file(HashAPI hash_api, void *ctx, Node **keys_table, unsigned int keys_table_size, const char *path)
@@ -131,18 +135,17 @@ bool process_file(HashAPI hash_api, void *ctx, Node **keys_table, unsigned int k
     if (!file_pointer)
     {
         perror(path);
-        fprintf(stderr, "Could not open %s\n", path);
-        printf("Skipping...\n");
+        fprintf(stderr, "Could not open %s\nSkipping…\n", path);
         free(hash_key);
         return false;
     }
+    
     binary_hash(hash_api, ctx, file_pointer, hash_key);
     keys_table_add(keys_table, keys_table_size, hash_api.out_size, hash_key);
-    fclose(file_pointer);
     return true;
 }
 
-void process_files(HashAPI hash_api, Node **keys_table, unsigned int keys_table_size, const char *filepaths[], unsigned int nfiles, unsigned long long *hash_count)
+void process_files(HashAPI hash_api, Node **keys_table, unsigned int keys_table_size, const char *filepaths[], unsigned int nfiles, unsigned int *hash_count)
 {
     void *ctx = malloc(hash_api.ctx_size);
 
@@ -177,7 +180,7 @@ int main(int argc, char *argv[])
         return 5;
     }
 
-    unsigned long long hash_count = 0;
+    unsigned int hash_count = 0;
 
     const unsigned int keys_table_size = hash_api.out_size * hash_api.out_size;
     Node **keys_table = create_keys_table(keys_table_size);
@@ -189,7 +192,7 @@ int main(int argc, char *argv[])
 
     CountEntry *count_of_counts = create_count_of_counts(keys_table, keys_table_size, &node_count, &most_digits);
 
-    detroy_keys_table(keys_table, keys_table_size);
+    destroy_keys_table(keys_table, keys_table_size);
 
     analyse(hash_api, &count_of_counts, node_count, hash_count, nfiles, most_digits);
 
