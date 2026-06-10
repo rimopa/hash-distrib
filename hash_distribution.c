@@ -169,9 +169,8 @@ void printbar(unsigned int width)
 void analyse(HashAPI hash_api, CountEntry **count_of_counts, unsigned long long node_count, unsigned int hash_count, unsigned int nfiles, unsigned int most_digits)
 {
     CountEntry *count_entry, *tmp; // Variables for iteraton
-
-    printbar(22);
-    printf("Distribution analysis:\n");
+    printbar(79);
+    printf("Distribution analysis of '%s' hash function:\n", hash_api.name);
     printf("\n");
     printf("%i/%i hashes returned.\n", hash_count, nfiles);
     printf("Out of 2^%zu possible, %lli distinct keys were returned.\n", hash_api.out_size * 8, node_count);
@@ -181,10 +180,11 @@ void analyse(HashAPI hash_api, CountEntry **count_of_counts, unsigned long long 
         return;
     }
     printf("The following table is to be read like this: ");
-    printf("[Column 1] number of keys were returned [Column 2] number of times\n");
+    printf("[Column 1] number of keys were returned [Column 2] number of times.\n");
 
     HASH_SORT(*count_of_counts, sort_by_id);
     const unsigned int width = most_digits * 2 + 3;
+    unsigned long long counts_sum = 0;
     printbar(width);
     HASH_ITER(hh, *count_of_counts, count_entry, tmp)
     {
@@ -195,7 +195,12 @@ void analyse(HashAPI hash_api, CountEntry **count_of_counts, unsigned long long 
         for (unsigned int i = 0; i < most_digits - count_entry->id_digits; i++)
             printf(" ");
         printf("|\n");
+        counts_sum += count_entry->num_values * count_entry->id;
     }
     printbar(width);
     printf("\n");
+
+    printf("Mean of counts: %.3f\n", (double)counts_sum / node_count);
+    printf("The closer the mean is to 1, the more the keys that were returned only once, so the more buckets you would need, but the more values you are going to be able to access with an O(1).\n");
+    printf("The bigger it is, the more repeated the keys your hash function returned.\n");
 }

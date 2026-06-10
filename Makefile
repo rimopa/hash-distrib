@@ -12,6 +12,9 @@ HASHSRC = example-hash.c
 TESTFLAGS = ./$(HASHTARGET) $(TESTDATA)
 TESTDATA = testdata/*
 
+PROGRESSBAR_DIR = progressbar
+PROGRESSBAR_INC = -I$(PROGRESSBAR_DIR)/include/progressbar
+
 $(TARGET): $(SRC)
 	$(CC) $(CFLAGS) $(SRC) $(ADDITIONAL) -o $(TARGET)
 
@@ -21,5 +24,8 @@ test: $(HASHTARGET) $(TARGET)
 $(HASHTARGET): $(HASHSRC)
 	$(CC) $(HASHCFLAGS) $(HASHSRC) -o $(HASHTARGET)
 
+progressbar.o: $(PROGRESSBAR_DIR)/lib/progressbar.c
+	$(CC) -c $(PROGRESSBAR_INC) $< -o $@
+
 clean:
-	rm $(TARGET) $(HASHTARGET)
+	rm -f $(TARGET) $(HASHTARGET) progressbar.o
