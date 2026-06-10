@@ -1,0 +1,6 @@
+[submodule "progressbar"]
+	path = progressbar
+	url = https://github.com/doches/progressbar
+[submodule "uthash"]
+	path = uthash
+	url = https://github.com/troydhanson/uthash
