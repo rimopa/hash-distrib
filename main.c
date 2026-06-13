@@ -125,8 +125,6 @@ int binary_hash(HashAPI hash_api, void *ctx, FILE *file_pointer, unsigned char *
     }
     hash_api.final(ctx, hash_key);
 
-    printf("%d", (int)(*hash_key));
-
         return 0;
 }
 

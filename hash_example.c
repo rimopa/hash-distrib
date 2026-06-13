@@ -2,14 +2,15 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "hash_api.h"
 
 #define RETURN_TYPE uint16_t
 
 typedef struct
 {
-    uint8_t words[2];
-    uint32_t state[5];
+    unsigned int words[2];
+    unsigned long state[5];
 } u8p5_ctx;
 
 void init(void *ctx)
@@ -43,9 +44,12 @@ void final(void *ctx,
            unsigned char *out)
 {
     u8p5_ctx *context = (u8p5_ctx *)ctx;
-    RETURN_TYPE r = rand() % 50 + context->words[0];
-
-    *out = r;
+    RETURN_TYPE r;
+    if (rand() % 2 == 0)
+        r = (RETURN_TYPE)(uint8_t)context->words[0] + 5;
+    else
+        r = rand() % 2;
+    memcpy(out, &r, sizeof(RETURN_TYPE));
 }
 
 static const HashAPI api = {

@@ -7,7 +7,7 @@ ADDITIONAL = hash_distribution.c
 SRC = main.c
 
 HASHTARGET = libhash.so
-HASHSRC = example-hash.c
+HASHSRC = hash_example.c
 
 TESTFLAGS = ./$(HASHTARGET) $(TESTDATA)
 TESTDATA = testdata/*
