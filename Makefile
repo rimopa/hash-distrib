@@ -12,11 +12,12 @@ HASHSRC = example-hash.c
 TESTFLAGS = ./$(HASHTARGET) $(TESTDATA)
 TESTDATA = testdata/*
 
+PROGRESBARTARGET = progressbar.o
 PROGRESSBAR_DIR = progressbar
 PROGRESSBAR_INC = -I$(PROGRESSBAR_DIR)/include/progressbar
 
-$(TARGET): $(SRC)
-	$(CC) $(CFLAGS) $(SRC) $(ADDITIONAL) -o $(TARGET)
+$(TARGET): $(SRC) $(PROGRESBARTARGET)
+	$(CC) $(CFLAGS) $(PROGRESSBAR_INC) $(SRC) $(ADDITIONAL) $(PROGRESBARTARGET) -o $(TARGET) -lncurses
 
 test: $(HASHTARGET) $(TARGET)
 	./$(TARGET) $(TESTFLAGS)
@@ -24,8 +25,8 @@ test: $(HASHTARGET) $(TARGET)
 $(HASHTARGET): $(HASHSRC)
 	$(CC) $(HASHCFLAGS) $(HASHSRC) -o $(HASHTARGET)
 
-progressbar.o: $(PROGRESSBAR_DIR)/lib/progressbar.c
+$(PROGRESBARTARGET): $(PROGRESSBAR_DIR)/lib/progressbar.c
 	$(CC) -c $(PROGRESSBAR_INC) $< -o $@
 
 clean:
-	rm -f $(TARGET) $(HASHTARGET) progressbar.o
+	rm -f $(TARGET) $(HASHTARGET) $(PROGRESBARTARGET)
