@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <sys/resource.h>
 #include <unistd.h>
+#include "progressbar/include/progressbar/progressbar.h"
 
 #include "hash_distribution.h"
 #include "hash_api.h"
@@ -124,7 +125,9 @@ int binary_hash(HashAPI hash_api, void *ctx, FILE *file_pointer, unsigned char *
     }
     hash_api.final(ctx, hash_key);
 
-    return 0;
+    printf("%d", (int)(*hash_key));
+
+        return 0;
 }
 
 bool process_file(HashAPI hash_api, void *ctx, Node **keys_table, unsigned int keys_table_size, const char *path)
@@ -139,7 +142,7 @@ bool process_file(HashAPI hash_api, void *ctx, Node **keys_table, unsigned int k
         free(hash_key);
         return false;
     }
-    
+
     binary_hash(hash_api, ctx, file_pointer, hash_key);
     keys_table_add(keys_table, keys_table_size, hash_api.out_size, hash_key);
     return true;
@@ -149,11 +152,15 @@ void process_files(HashAPI hash_api, Node **keys_table, unsigned int keys_table_
 {
     void *ctx = malloc(hash_api.ctx_size);
 
+    progressbar *progress = progressbar_new("Hashing files…", nfiles);
+
     for (unsigned int i = 0; i < nfiles; i++)
     {
         if (process_file(hash_api, ctx, keys_table, keys_table_size, filepaths[i]))
             (*hash_count)++;
+        progressbar_inc(progress);
     }
+    progressbar_finish(progress);
     free(ctx);
 }
 
