@@ -1,6 +1,8 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -Werror
+CFLAGS = -g -Wall -Wextra -Werror
 HASHCFLAGS = -g -shared -fPIC $(CFLAGS)
+
+DEBUGGER = gdb
 
 TARGET = hash-distrib
 ADDITIONAL = hash_distribution.c
@@ -17,7 +19,7 @@ PROGRESSBAR_DIR = progressbar
 PROGRESSBAR_INC = -I$(PROGRESSBAR_DIR)/include/progressbar
 
 $(TARGET): $(SRC) $(PROGRESBARTARGET)
-	$(CC) $(CFLAGS) $(PROGRESSBAR_INC) $(SRC) $(ADDITIONAL) $(PROGRESBARTARGET) -o $(TARGET) -lncurses
+	$(CC) $(SRC) $(CFLAGS) $(PROGRESSBAR_INC) $(ADDITIONAL) $(PROGRESBARTARGET) -o $(TARGET) -lncurses
 
 test: $(HASHTARGET) $(TARGET)
 	./$(TARGET) $(TESTFLAGS)
@@ -27,6 +29,9 @@ $(HASHTARGET): $(HASHSRC)
 
 $(PROGRESBARTARGET): $(PROGRESSBAR_DIR)/lib/progressbar.c
 	$(CC) -c $(PROGRESSBAR_INC) $< -o $@
+
+debug: $(HASHTARGET) $(TARGET)
+	$(DEBUGGER) --args ./$(TARGET) $(TESTFLAGS)
 
 clean:
 	rm -f $(TARGET) $(HASHTARGET) $(PROGRESBARTARGET)
