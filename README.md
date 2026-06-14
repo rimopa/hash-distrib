@@ -31,7 +31,7 @@ A quick way to try out hash-distrib.
 
 2. In the repo folder, build the provided algorithm of your choice as a shared library. For example, SHA256. This will let hash-distrib access its functions on the fly.
   ```sh
-  ~/hash-distrib$ gcc -shared -fPIC crypto-algorithms/sha256.c -o libsha256.so
+  ~/hash-distrib$ gcc -shared -fPIC hash-algorithms/sha256.c -o libsha256.so
   ```
 
 3. If you don't have it already, get the compiled hash-distrib.
@@ -134,6 +134,5 @@ hash-distrib ./libawa.so testdata.xyz testpicture.png …
 
 ## Used resources
 
-- [crypto-algorithms](https://github.com/B-Con/crypto-algorithms)
 - [uthash](https://github.com/troydhanson/uthash)
 - [progressbar](https://github.com/doches/progressbar)

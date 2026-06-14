@@ -30,7 +30,7 @@ $(NAMEDTARGET): $(SRC) $(PROGRESSBAR_OBJ) $(ADDITIONAL)
 	$(CC) -g $(CFLAGS) $(CPPFLAGS) $^ -o $@ $(LDFLAGS)
 
 $(HASHLIB): $(HASHSRC)
-	$(CC) $(CFLAGS) -shared -fPIC $< -o $@
+	$(CC) $(CFLAGS) -shared -fPIC -x c $< -o $@
 
 $(PROGRESSBAR_OBJ): $(PROGRESSBAR_DIR)/lib/progressbar.c
 	$(CC) $(CFLAGS) -c $(CPPFLAGS) $< -o $@
