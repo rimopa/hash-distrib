@@ -4,27 +4,29 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/resource.h>
 #include <unistd.h>
 #include "progressbar/include/progressbar/progressbar.h"
 
 #include "hash_distribution.h"
+#include "readers.h"
 #include "hash_api.h"
 
 #define HASH_API_FUNC_NAME "hash_api"
-#define HASH_CHUNK_SIZE 4096
 
 static void usage(const char *prog)
 {
     fprintf(stderr,
-            "Usage: %s <libhash.so> [options] [-r reader.bin] <file>...\n"
+            "Usage: %s <libhash.so> [options] <file>...\n"
             "\n"
-            "  libhash.so           Executable as hash function to evaluate\n"
-            "  -r reader.bin        Executable as reader function\n"
-            "  file                 Files to hash with libhash.so. Read as binary\n"
-            ""
+            "  libhash.so       Executable as hash function to evaluate\n"
+            "  file             Files to hash with libhash.so\n"
+            "\n"
             "  Options:\n"
-            "  -v                   Verbose\n",
+            "  -v               Verbose\n"
+            "  -m binary        Default. Hash whole files as binary data\n"
+            "  -m line          Open files as text and hash each line (text separated by \\n)\n",
             prog);
 }
 
@@ -52,7 +54,17 @@ void *open_handle(const char *hashpath)
     return handle;
 }
 
-void read_args(int argc, char *argv[], char **hashpath, char **readerpath, unsigned int *nfiles, bool *verbose)
+int choose_mode(char *mode_string)
+{
+    if (strcmp(mode_string, "b") == 0 || strcmp(mode_string, "bin") == 0 || strcmp(mode_string, "binary") == 0)
+        return 0;
+    else if (strcmp(mode_string, "l") == 0 || strcmp(mode_string, "line") == 0)
+        return 1;
+    else
+        return -1;
+}
+
+void read_args(int argc, char *argv[], char **hashpath, unsigned int *nfiles, bool *verbose, int *mode_pointer)
 {
     if (argc < 2)
     {
@@ -61,20 +73,20 @@ void read_args(int argc, char *argv[], char **hashpath, char **readerpath, unsig
     }
 
     *hashpath = argv[1];
-    *readerpath = NULL;
 
     // Read options. I learnt the syntax from Claude Sonnet 4.6:
     optind = 2;
     int opt;
-    while ((opt = getopt(argc, argv, "vr:h")) != -1)
+    char *mode_string = NULL;
+    while ((opt = getopt(argc, argv, "vhm:")) != -1)
     {
         switch (opt)
         {
+        case 'm':
+            mode_string = optarg;
+            break;
         case 'v':
             *verbose = true;
-            break;
-        case 'r':
-            *readerpath = optarg;
             break;
         case 'h':
             usage(argv[0]);
@@ -84,6 +96,18 @@ void read_args(int argc, char *argv[], char **hashpath, char **readerpath, unsig
             exit(2);
         default:
             abort();
+        }
+    }
+    if (mode_string == NULL)
+        *mode_pointer = 0;
+    else
+    {
+        *mode_pointer = choose_mode(mode_string);
+        if (*mode_pointer < 0)
+        {
+            fprintf(stderr, "Unrecognized mode %s\n", mode_string);
+            usage(argv[0]);
+            exit(6);
         }
     }
 
@@ -98,88 +122,84 @@ void read_filepaths(char *argv[], int nfiles, const char *filepaths[])
     }
 }
 
-// Get file size and rewind file pointer
-long get_file_size(FILE *file_pointer)
+void print_key_bytes(unsigned char *pointer, size_t bytes)
 {
-    fseek(file_pointer, 0, SEEK_END);
-    long file_size = ftell(file_pointer);
-    rewind(file_pointer);
-    return file_size;
-}
-
-int binary_hash(HashAPI hash_api, void *ctx, FILE *file_pointer, unsigned char *hash_key)
-{
-    long file_size = get_file_size(file_pointer);
-
-    unsigned int full_chunk_count = file_size / HASH_CHUNK_SIZE;
-
-    hash_api.init(ctx);
-
-    {
-        unsigned char buffer[HASH_CHUNK_SIZE];
-        for (unsigned int i = 0; i < full_chunk_count; i++)
-        {
-            fread(buffer, 1, HASH_CHUNK_SIZE, file_pointer);
-            hash_api.update(ctx, buffer, HASH_CHUNK_SIZE);
-        }
-    }
-
-    {
-        unsigned int final_read_size = file_size - HASH_CHUNK_SIZE * full_chunk_count;
-        unsigned char buffer[final_read_size];
-        fread(buffer, 1, final_read_size, file_pointer);
-        hash_api.update(ctx, buffer, final_read_size);
-    }
-    hash_api.final(ctx, hash_key);
-
-    return 0;
-}
-
-void printbytes(unsigned char *pointer, size_t bytes)
-{
+    printf("Returned key bytes: ");
     for (unsigned int i = 0; i < bytes - 1; i++)
         printf("%i, ", pointer[i]);
     printf("%i\n", pointer[bytes - 1]);
 }
 
-bool process_file(HashAPI hash_api, void *ctx, Node **keys_table, unsigned int keys_table_size, const char *path, bool verbose, unsigned long long *distinct_keys_count)
+unsigned int process_lines(HashAPI hash_api, void *ctx, Node **keys_table, unsigned int keys_table_size, bool verbose, unsigned long long *distinct_keys_count_pointer, FILE *file_pointer)
 {
-    unsigned char *hash_key_pointer = malloc(hash_api.out_size);
-    FILE *file_pointer = fopen(path, "rb");
+    unsigned int local_hash_count = 0;
+    unsigned char *hash_key_pointer;
+    char *line = NULL;
+    size_t len = 0;
+
+    while (getline(&line, &len, file_pointer) != -1)
+    {
+        line[strcspn(line, "\n")] = '\0';
+
+        hash_key_pointer = malloc(hash_api.out_size);
+        string_hash(hash_api, ctx, hash_key_pointer, line);
+        if (verbose)
+            print_key_bytes(hash_key_pointer, hash_api.out_size);
+        keys_table_add(keys_table, keys_table_size, hash_api.out_size, hash_key_pointer, verbose, distinct_keys_count_pointer);
+        local_hash_count++;
+    }
+    free(line);
+    return local_hash_count;
+}
+
+// Return valid hashes from file
+unsigned int process_file(HashAPI hash_api, void *ctx, Node **keys_table, unsigned int keys_table_size, const char *path, bool verbose, unsigned long long *distinct_keys_count_pointer, int mode)
+{
+    FILE *file_pointer = NULL;
+    unsigned int returnval = 0;
+
+    if (mode == 0)
+        file_pointer = fopen(path, "rb");
+    else if (mode == 1)
+        file_pointer = fopen(path, "r");
 
     if (!file_pointer)
     {
         perror(path);
         fprintf(stderr, "Could not open %s\nSkipping…\n", path);
-        free(hash_key_pointer);
-        return false;
+        return 0;
     }
 
-    binary_hash(hash_api, ctx, file_pointer, hash_key_pointer);
-    if (verbose)
+    if (mode == 0)
     {
-        printf("Returned key bytes: ");
-        printbytes(hash_key_pointer, hash_api.out_size);
+        unsigned char *hash_key_pointer = malloc(hash_api.out_size);
+        binary_hash(hash_api, ctx, file_pointer, hash_key_pointer);
+        if (verbose)
+            print_key_bytes(hash_key_pointer, hash_api.out_size);
+        keys_table_add(keys_table, keys_table_size, hash_api.out_size, hash_key_pointer, verbose, distinct_keys_count_pointer);
+        returnval = 1;
     }
-    keys_table_add(keys_table, keys_table_size, hash_api.out_size, hash_key_pointer, verbose, distinct_keys_count);
-    return true;
+    else if (mode == 1)
+        returnval = process_lines(hash_api, ctx, keys_table, keys_table_size, verbose, distinct_keys_count_pointer, file_pointer);
+
+    fclose(file_pointer);
+    return returnval;
 }
 
-void process_files(HashAPI hash_api, Node **keys_table, unsigned int keys_table_size, const char *filepaths[], unsigned int nfiles, unsigned int *valid_hashes_count_pointer, bool verbose, unsigned long long *distinct_keys_count)
+void process_files(HashAPI hash_api, Node **keys_table, unsigned int keys_table_size, const char *filepaths[], unsigned int nfiles, unsigned int *valid_hashes_count_pointer, bool verbose, unsigned long long *distinct_keys_count, int mode)
 {
     void *ctx = malloc(hash_api.ctx_size);
     progressbar *progress;
     if (!verbose)
-        progress = progressbar_new("Hashing files", nfiles);
+        progress = progressbar_new("Hashing data", nfiles);
 
     for (unsigned int i = 0; i < nfiles; i++)
     {
         if (verbose)
-            printf("Hashing %s\n", filepaths[i]);
+            printf("Hashing data from file: %s\n", filepaths[i]);
         else
             progressbar_inc(progress);
-        if (process_file(hash_api, ctx, keys_table, keys_table_size, filepaths[i], verbose, distinct_keys_count))
-            (*valid_hashes_count_pointer)++;
+        *valid_hashes_count_pointer += process_file(hash_api, ctx, keys_table, keys_table_size, filepaths[i], verbose, distinct_keys_count, mode);
     }
     if (!verbose)
         progressbar_finish(progress);
@@ -189,11 +209,11 @@ void process_files(HashAPI hash_api, Node **keys_table, unsigned int keys_table_
 int main(int argc, char *argv[])
 {
     char *hashpath;
-    char *readerpath;
+    int mode;
     bool verbose;
     unsigned int nfiles;
 
-    read_args(argc, argv, &hashpath, &readerpath, &nfiles, &verbose);
+    read_args(argc, argv, &hashpath, &nfiles, &verbose, &mode);
 
     const char *filepaths[nfiles];
 
@@ -216,7 +236,7 @@ int main(int argc, char *argv[])
     const unsigned int keys_table_size = hash_api.out_size * hash_api.out_size;
     Node **keys_table = create_keys_table(keys_table_size);
 
-    process_files(hash_api, keys_table, keys_table_size, filepaths, nfiles, &valid_hashes_count, verbose, &distinct_keys_count);
+    process_files(hash_api, keys_table, keys_table_size, filepaths, nfiles, &valid_hashes_count, verbose, &distinct_keys_count, mode);
 
     analyse(keys_table, keys_table_size, hash_api, distinct_keys_count, valid_hashes_count, nfiles);
 

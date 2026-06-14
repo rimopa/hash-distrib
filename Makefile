@@ -1,39 +1,46 @@
-CC = gcc
-CFLAGS = -g -Wall -Wextra -Werror
-HASHCFLAGS = -g -shared -fPIC $(CFLAGS)
+CC       := gcc
+CFLAGS   := -Wall -Wextra -Werror
+CPPFLAGS := -Iprogressbar/include/progressbar
+LDFLAGS  := -lncurses
 
-DEBUGGER = gdb
+DEBUGGER := gdb
 
-TARGET = hash-distrib
-ADDITIONAL = hash_distribution.c
-SRC = main.c
+TARGET   := hash-distrib
+NAMEDTARGET := hash-distrib-varnamed
+SRC      := main.c
+ADDITIONAL := hash_distribution.c readers.c
 
-HASHTARGET = libhash.so
-HASHSRC = hash_example.c
-TESTDATA = testdata/*
+HASHLIB  := libhash.so
+HASHSRC  ?= hash_example.c
 
-PROGRESBARTARGET = progressbar.o
-PROGRESSBAR_DIR = progressbar
-PROGRESSBAR_INC = -I$(PROGRESSBAR_DIR)/include/progressbar
+ARGS ?= -m binary
+TESTDATA ?= testdata/*
 
-$(TARGET): $(SRC) $(PROGRESBARTARGET)
-	$(CC) $(SRC) $(CFLAGS) $(PROGRESSBAR_INC) $(ADDITIONAL) $(PROGRESBARTARGET) -o $(TARGET) -lncurses
+PROGRESSBAR_DIR := progressbar
+PROGRESSBAR_OBJ := progressbar.o
 
-test: $(HASHTARGET) $(TARGET)
-	./$(TARGET) ./$(HASHTARGET) $(TESTDATA)
+.PHONY: all test testv testl testvl debug debugl clean
 
-testv: $(HASHTARGET) $(TARGET)
-	./$(TARGET) ./$(HASHTARGET) -v $(TESTDATA)
+all: $(TARGET)
+
+$(TARGET): $(SRC) $(PROGRESSBAR_OBJ) $(ADDITIONAL)
+	$(CC) $(CFLAGS) $(CPPFLAGS) $^ -o $@ $(LDFLAGS)
+
+$(NAMEDTARGET): $(SRC) $(PROGRESSBAR_OBJ) $(ADDITIONAL)
+	$(CC) -g $(CFLAGS) $(CPPFLAGS) $^ -o $@ $(LDFLAGS)
+
+$(HASHLIB): $(HASHSRC)
+	$(CC) $(CFLAGS) -shared -fPIC $< -o $@
+
+$(PROGRESSBAR_OBJ): $(PROGRESSBAR_DIR)/lib/progressbar.c
+	$(CC) $(CFLAGS) -c $(CPPFLAGS) $< -o $@
+
+test: $(HASHLIB) $(TARGET)
+	./$(TARGET) ./$(HASHLIB) $(ARGS) $(TESTDATA)
 
 
-$(HASHTARGET): $(HASHSRC)
-	$(CC) $(HASHCFLAGS) $(HASHSRC) -o $(HASHTARGET)
-
-$(PROGRESBARTARGET): $(PROGRESSBAR_DIR)/lib/progressbar.c
-	$(CC) -c $(PROGRESSBAR_INC) $< -o $@
-
-debug: $(HASHTARGET) $(TARGET)
-	$(DEBUGGER) --args ./$(TARGET) $(TESTFLAGS)
+debug: $(HASHLIB) $(NAMEDTARGET)
+	$(DEBUGGER) --args ./$(NAMEDTARGET) ./$(HASHLIB) $(ARGS) $(TESTDATA)
 
 clean:
-	rm -f $(TARGET) $(HASHTARGET) $(PROGRESBARTARGET)
+	rm -f $(TARGET) $(NAMEDTARGET) $(HASHLIB) $(PROGRESSBAR_OBJ)
