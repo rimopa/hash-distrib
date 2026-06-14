@@ -27,7 +27,7 @@ typedef struct
 
 // Hash Keys Table
 Node **create_keys_table(unsigned int keys_table_size);
-void keys_table_add(Node **keys_table, unsigned int keys_table_size, size_t key_size, unsigned char *hash_key_pointer);
+void keys_table_add(Node **keys_table, unsigned int keys_table_size, size_t key_size, unsigned char *hash_key_pointer, bool verbose);
 void destroy_keys_table(Node **keys_table, unsigned int keys_table_size);
 
 // Count of counts table

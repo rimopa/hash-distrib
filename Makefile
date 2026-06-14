@@ -10,8 +10,6 @@ SRC = main.c
 
 HASHTARGET = libhash.so
 HASHSRC = hash_example.c
-
-TESTFLAGS = ./$(HASHTARGET) $(TESTDATA)
 TESTDATA = testdata/*
 
 PROGRESBARTARGET = progressbar.o
@@ -22,7 +20,11 @@ $(TARGET): $(SRC) $(PROGRESBARTARGET)
 	$(CC) $(SRC) $(CFLAGS) $(PROGRESSBAR_INC) $(ADDITIONAL) $(PROGRESBARTARGET) -o $(TARGET) -lncurses
 
 test: $(HASHTARGET) $(TARGET)
-	./$(TARGET) $(TESTFLAGS)
+	./$(TARGET) ./$(HASHTARGET) $(TESTDATA)
+
+test-v:
+	./$(TARGET) ./$(HASHTARGET) -v $(TESTDATA)
+
 
 $(HASHTARGET): $(HASHSRC)
 	$(CC) $(HASHCFLAGS) $(HASHSRC) -o $(HASHTARGET)

@@ -17,12 +17,14 @@
 static void usage(const char *prog)
 {
     fprintf(stderr,
-            "Usage: %s <libhash.so> [-r reader.bin] <file>...\n"
+            "Usage: %s <libhash.so> [options] [-r reader.bin] <file>...\n"
             "\n"
             "  libhash.so           Executable as hash function to evaluate\n"
             "  -r reader.bin        Executable as reader function\n"
             "  file                 Files to hash with libhash.so. Read as binary\n"
-            "\n",
+            ""
+            "  Options:\n"
+            "  -v                   Verbose\n",
             prog);
 }
 
@@ -40,8 +42,7 @@ HashAPI get_hash_api(void *handle)
 
 void *open_handle(const char *hashpath)
 {
-    // Using shared library to call void*ev_hash(void*data) from hash.so
-    // Used: https://stackoverflow.com/questions/63306734/when-to-actually-use-dlopen-does-dlopen-means-dynamic-loading
+    // Inspired by https://stackoverflow.com/questions/63306734/when-to-actually-use-dlopen-does-dlopen-means-dynamic-loading
     void *handle = dlopen(hashpath, RTLD_LAZY);
     if (!handle)
     {
@@ -51,7 +52,7 @@ void *open_handle(const char *hashpath)
     return handle;
 }
 
-void read_args(int argc, char *argv[], char **hashpath, char **readerpath, unsigned int *nfiles)
+void read_args(int argc, char *argv[], char **hashpath, char **readerpath, unsigned int *nfiles, bool *verbose)
 {
     if (argc < 2)
     {
@@ -65,18 +66,24 @@ void read_args(int argc, char *argv[], char **hashpath, char **readerpath, unsig
     // Read options. I learnt the syntax from Claude Sonnet 4.6:
     optind = 2;
     int opt;
-    while ((opt = getopt(argc, argv, "r:h")) != -1)
+    while ((opt = getopt(argc, argv, "vr:h")) != -1)
     {
         switch (opt)
         {
+        case 'v':
+            *verbose = true;
+            break;
         case 'r':
             *readerpath = optarg;
             break;
         case 'h':
             usage(argv[0]);
+            exit(0);
+        case '?':
+            usage(argv[0]);
             exit(2);
         default:
-            break;
+            abort();
         }
     }
 
@@ -125,40 +132,57 @@ int binary_hash(HashAPI hash_api, void *ctx, FILE *file_pointer, unsigned char *
     }
     hash_api.final(ctx, hash_key);
 
-        return 0;
+    return 0;
 }
 
-bool process_file(HashAPI hash_api, void *ctx, Node **keys_table, unsigned int keys_table_size, const char *path)
+void printbytes(unsigned char *pointer, size_t bytes)
 {
-    unsigned char *hash_key = malloc(hash_api.out_size);
+    for (unsigned int i = 0; i < bytes - 1; i++)
+        printf("%i, ", pointer[i]);
+    printf("%i\n", pointer[bytes - 1]);
+}
+
+bool process_file(HashAPI hash_api, void *ctx, Node **keys_table, unsigned int keys_table_size, const char *path, bool verbose)
+{
+    unsigned char *hash_key_pointer = malloc(hash_api.out_size);
     FILE *file_pointer = fopen(path, "rb");
 
     if (!file_pointer)
     {
         perror(path);
         fprintf(stderr, "Could not open %s\nSkipping…\n", path);
-        free(hash_key);
+        free(hash_key_pointer);
         return false;
     }
 
-    binary_hash(hash_api, ctx, file_pointer, hash_key);
-    keys_table_add(keys_table, keys_table_size, hash_api.out_size, hash_key);
+    binary_hash(hash_api, ctx, file_pointer, hash_key_pointer);
+    if (verbose)
+    {
+        printf("Returned key bytes: ");
+        printbytes(hash_key_pointer, hash_api.out_size);
+    }
+    keys_table_add(keys_table, keys_table_size, hash_api.out_size, hash_key_pointer, verbose);
     return true;
 }
 
-void process_files(HashAPI hash_api, Node **keys_table, unsigned int keys_table_size, const char *filepaths[], unsigned int nfiles, unsigned int *hash_count)
+void process_files(HashAPI hash_api, Node **keys_table, unsigned int keys_table_size, const char *filepaths[], unsigned int nfiles, unsigned int *hash_count, bool verbose)
 {
     void *ctx = malloc(hash_api.ctx_size);
-
-    progressbar *progress = progressbar_new("Hashing files…", nfiles);
+    progressbar *progress;
+    if (!verbose)
+        progress = progressbar_new("Hashing files", nfiles);
 
     for (unsigned int i = 0; i < nfiles; i++)
     {
-        if (process_file(hash_api, ctx, keys_table, keys_table_size, filepaths[i]))
+        if (verbose)
+            printf("Hashing %s\n", filepaths[i]);
+        else
+            progressbar_inc(progress);
+        if (process_file(hash_api, ctx, keys_table, keys_table_size, filepaths[i], verbose))
             (*hash_count)++;
-        progressbar_inc(progress);
     }
-    progressbar_finish(progress);
+    if (!verbose)
+        progressbar_finish(progress);
     free(ctx);
 }
 
@@ -166,9 +190,10 @@ int main(int argc, char *argv[])
 {
     char *hashpath;
     char *readerpath;
+    bool verbose;
     unsigned int nfiles;
 
-    read_args(argc, argv, &hashpath, &readerpath, &nfiles);
+    read_args(argc, argv, &hashpath, &readerpath, &nfiles, &verbose);
 
     const char *filepaths[nfiles];
 
@@ -190,7 +215,7 @@ int main(int argc, char *argv[])
     const unsigned int keys_table_size = hash_api.out_size * hash_api.out_size;
     Node **keys_table = create_keys_table(keys_table_size);
 
-    process_files(hash_api, keys_table, keys_table_size, filepaths, nfiles, &hash_count);
+    process_files(hash_api, keys_table, keys_table_size, filepaths, nfiles, &hash_count, verbose);
 
     unsigned int most_digits = 0;
     unsigned long long node_count = 0;

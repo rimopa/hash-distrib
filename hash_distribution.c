@@ -40,15 +40,34 @@ Node *new_node(unsigned char *hash_key_pointer)
     return new;
 }
 
-void keys_table_add(Node **keys_table, unsigned int keys_table_size, size_t key_size, unsigned char *hash_key_pointer)
+size_t keys_table_index(unsigned char *hash_key_pointer, size_t key_size, unsigned int keys_table_size)
 {
-    unsigned int val;
-    memcpy(&val, hash_key_pointer, sizeof(val));
-    size_t index = val % keys_table_size;
+    // uint16_t (two bytes) limit is 65535, which is also the max index for 256 bytes keys_tables, as 256*256 = 65536.
+    unsigned char *xor_array = calloc(1, sizeof(uint16_t));
+    for (unsigned int i = 0; i < key_size; i++)
+    {
+        xor_array[i % 2] ^= hash_key_pointer[i];
+    }
+
+    uint16_t val;
+    memcpy(&val, xor_array, sizeof(uint16_t));
+
+    free(xor_array);
+
+    return val % keys_table_size;
+}
+
+void keys_table_add(Node **keys_table, unsigned int keys_table_size, size_t key_size, unsigned char *hash_key_pointer, bool verbose)
+{
+    size_t index = keys_table_index(hash_key_pointer, key_size, keys_table_size);
+    if (verbose)
+        printf("Using bucket %zu/%d\n", index, keys_table_size);
 
     if (keys_table[index] == NULL)
     {
         keys_table[index] = new_node(hash_key_pointer);
+        if (verbose)
+            printf("Added as new node at head of bucket\n");
         return;
     }
     Node *current = keys_table[index];
@@ -58,12 +77,16 @@ void keys_table_add(Node **keys_table, unsigned int keys_table_size, size_t key_
         {
             current->count++;
             free(hash_key_pointer);
+            if (verbose)
+                printf("Already found in keys table, count of node++ and memory freed\n");
             break;
-        }
-        else if (current->next == NULL)
-        {
-            current->next = new_node(hash_key_pointer);
-            break;
+            }
+            else if (current->next == NULL)
+            {
+                current->next = new_node(hash_key_pointer);
+                if (verbose)
+                    printf("Not found, added as tail of bucket\n");
+                break;
         }
         else
             current = current->next;
