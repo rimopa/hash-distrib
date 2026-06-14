@@ -33,7 +33,7 @@ static void usage(const char *prog)
 HashAPI get_hash_api(void *handle)
 {
     char *error;
-    HashAPI (*hash_api_func)() = dlsym(handle, HASH_API_FUNC_NAME);
+    HashAPI (*hash_api_func)(void) = dlsym(handle, HASH_API_FUNC_NAME);
     if ((error = dlerror()) != NULL)
     {
         fputs(error, stderr);

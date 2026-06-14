@@ -60,7 +60,7 @@ static const HashAPI api = {
     .update = update,
     .final = final};
 
-HashAPI hash_api()
+HashAPI hash_api(void)
 {
     return api;
 }
