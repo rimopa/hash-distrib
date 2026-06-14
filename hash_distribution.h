@@ -21,6 +21,6 @@ void keys_table_add(Node **keys_table, unsigned int keys_table_size, size_t key_
 void destroy_keys_table(Node **keys_table, unsigned int keys_table_size);
 
 // Analysis
-void analyse(Node **keys_table, unsigned int keys_table_size, HashAPI hash_api, unsigned long long node_count, unsigned int hash_count, unsigned int nfiles);
+void analyse(Node **keys_table, unsigned int keys_table_size, HashAPI hash_api, unsigned long long node_count, unsigned int valid_hashes_count, unsigned int nfiles);
 
 #endif

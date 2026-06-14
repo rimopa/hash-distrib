@@ -39,17 +39,17 @@ Node **create_keys_table(unsigned int keys_table_size)
     return calloc(keys_table_size, sizeof(Node *));
 }
 
-Node *new_node(unsigned char *hash_key_pointer, unsigned long long *node_count_pointer)
+Node *new_node(unsigned char *hash_key_pointer, unsigned long long *distinct_keys_count_pointer)
 {
     Node *new = malloc(sizeof(Node));
     new->key_pointer = hash_key_pointer;
     new->count = 1;
     new->next = NULL;
-    (*node_count_pointer)++;
+    (*distinct_keys_count_pointer)++;
     return new;
 }
 
-size_t keys_table_index(unsigned char *hash_key_pointer, size_t key_size, unsigned int keys_table_size)
+unsigned int keys_table_index(unsigned char *hash_key_pointer, size_t key_size, unsigned int keys_table_size)
 {
     // uint16_t (two bytes) limit is 65535, which is also the max index for 256 bytes keys_tables, as 256*256 = 65536.
     unsigned char *xor_array = calloc(1, sizeof(uint16_t));
@@ -66,15 +66,15 @@ size_t keys_table_index(unsigned char *hash_key_pointer, size_t key_size, unsign
     return val % keys_table_size;
 }
 
-void keys_table_add(Node **keys_table, unsigned int keys_table_size, size_t key_size, unsigned char *hash_key_pointer, bool verbose, unsigned long long *node_count_pointer)
+void keys_table_add(Node **keys_table, unsigned int keys_table_size, size_t key_size, unsigned char *hash_key_pointer, bool verbose, unsigned long long *distinct_keys_count_pointer)
 {
-    size_t index = keys_table_index(hash_key_pointer, key_size, keys_table_size);
+    unsigned int index = keys_table_index(hash_key_pointer, key_size, keys_table_size);
     if (verbose)
-        printf("Using bucket %zu/%d\n", index, keys_table_size);
+        printf("Using bucket %d/%d\n", index, keys_table_size);
 
     if (keys_table[index] == NULL)
     {
-        keys_table[index] = new_node(hash_key_pointer, node_count_pointer);
+        keys_table[index] = new_node(hash_key_pointer, distinct_keys_count_pointer);
         if (verbose)
             printf("Added as new node at head of bucket\n");
         return;
@@ -92,7 +92,7 @@ void keys_table_add(Node **keys_table, unsigned int keys_table_size, size_t key_
         }
         else if (current->next == NULL)
         {
-            current->next = new_node(hash_key_pointer, node_count_pointer);
+            current->next = new_node(hash_key_pointer, distinct_keys_count_pointer);
             if (verbose)
                 printf("Not found, added as tail of bucket\n");
             break;
@@ -204,7 +204,7 @@ unsigned int count_of_counts_most_digits(CountEntry *count_of_counts)
     return most_digits;
 }
 
-void analysis_table(Node **keys_table, unsigned int keys_table_size, unsigned int hash_count)
+void analysis_table(Node **keys_table, unsigned int keys_table_size, unsigned int valid_hashes_count)
 {
     CountEntry *count_of_counts = create_count_of_counts(keys_table, keys_table_size);
 
@@ -236,37 +236,37 @@ void analysis_table(Node **keys_table, unsigned int keys_table_size, unsigned in
     printbar(width);
     printf("\n");
 
-    printf("Mean of counts: %.3f\n", (float)counts_sum / hash_count);
+    printf("Mean of counts: %.3f\n", (float)counts_sum / valid_hashes_count);
     printf("The closer the mean is to 1, the more the keys that were returned only once\n");
     printf("The bigger it is, the more repeated the keys your hash function returned\n");
 
     destroy_count_of_counts(count_of_counts);
 }
 
-void analyse(Node **keys_table, unsigned int keys_table_size, HashAPI hash_api, unsigned long long node_count, unsigned int hash_count, unsigned int nfiles)
+void analyse(Node **keys_table, unsigned int keys_table_size, HashAPI hash_api, unsigned long long distinct_keys_count, unsigned int valid_hashes_count, unsigned int nfiles)
 {
     printbar(79);
     printf("Distribution analysis of '%s' hash function:\n", hash_api.name);
     printf("\n");
-    printf("%i/%i hashes returned.\n", hash_count, nfiles);
-    printf("Out of 2^%zu possible, %lli distinct keys were returned.\n", hash_api.out_size * 8, node_count);
+    printf("%i/%i hashes returned.\n", valid_hashes_count, nfiles);
+    printf("Out of 2^%zu possible, %lli distinct keys were returned.\n", hash_api.out_size * 8, distinct_keys_count);
     printf("\n");
 
-    if (node_count == 0 || hash_count <= 1)
+    if (distinct_keys_count == 0 || valid_hashes_count <= 1)
         return;
 
-    if (node_count == 1)
+    if (distinct_keys_count == 1)
     {
         printf("Wow, you got exactly the same key every time!\n"
                "If you plan to use a hash table for this kind of dataset and hash function,\n"
                "it's going to be a linked list with some extra steps and edge cases.\n");
     }
-    else if (node_count == hash_count)
+    else if (distinct_keys_count == valid_hashes_count)
     {
         printf("Wow, your returned keys were all different!\n"
                "If you plan to use a hash table for this kind of dataset and hash function,\n"
                "it's going to be an array with some extra steps and edge cases.\n");
     }
     else
-        analysis_table(keys_table, keys_table_size, hash_count);
+        analysis_table(keys_table, keys_table_size, valid_hashes_count);
 }
