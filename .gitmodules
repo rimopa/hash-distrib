@@ -4,6 +4,6 @@
 [submodule "uthash"]
 	path = uthash
 	url = https://github.com/troydhanson/uthash
-[submodule "crypto-algorithms"]
-	path = crypto-algorithms
-	url = https://github.com/rimopa/crypto-algorithms-hash-distrib
+[submodule "hash-algorithms"]
+	path = hash-algorithms
+	url = https://github.com/rimopa/hash-algorithms/
