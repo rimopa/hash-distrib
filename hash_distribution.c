@@ -9,14 +9,12 @@
 // Use https://github.com/troydhanson/uthash for count of counts hash table, Claude Opus 4.6's recommendation
 typedef struct
 {
-    unsigned long int id;         // Number of times a hash appears
-    unsigned long int num_values; // Number of hashes that appear that many times
-    unsigned int id_digits;
-    unsigned int num_values_digits;
+    unsigned long int id;     // Number of times a hash appears
+    unsigned long num_values; // Number of hashes that appear that many times
     UT_hash_handle hh;
 } CountEntry;
 
-int maxint(int a, int b)
+unsigned int maxuint(unsigned int a, unsigned int b)
 {
     if (a > b)
         return a;
@@ -135,30 +133,25 @@ int sort_by_num_values(const CountEntry *a, const CountEntry *b)
     return (a->num_values - b->num_values);
 }
 
-void count_of_counts_add(CountEntry **count_of_counts, unsigned long long key, unsigned int *most_digits)
+void count_of_counts_add(CountEntry **count_of_counts, unsigned long long key)
 {
     CountEntry *s;
     HASH_FIND_INT(*count_of_counts, &key, s);
     if (s != NULL)
     {
         s->num_values++;
-        s->num_values_digits = get_digit_count(s->num_values);
-        *most_digits = maxint(*most_digits, s->num_values_digits);
         return;
     }
     else
     {
         s = malloc(sizeof(CountEntry));
         s->id = key;
-        s->id_digits = get_digit_count(s->id);
         s->num_values = 1;
-        s->num_values_digits = 1;
         HASH_ADD_INT(*count_of_counts, id, s);
-        *most_digits = maxint(*most_digits, s->id_digits);
     }
 }
 
-CountEntry *create_count_of_counts(Node **keys_table, unsigned int keys_table_size, unsigned int *most_digits)
+CountEntry *create_count_of_counts(Node **keys_table, unsigned int keys_table_size)
 {
     CountEntry *count_of_counts = NULL; // empty map
     for (unsigned int i = 0; i < keys_table_size; i++)
@@ -170,7 +163,7 @@ CountEntry *create_count_of_counts(Node **keys_table, unsigned int keys_table_si
 
         while (true)
         {
-            count_of_counts_add(&count_of_counts, n->count, most_digits);
+            count_of_counts_add(&count_of_counts, n->count);
             if (n->next == NULL)
                 break;
             n = n->next;
@@ -199,26 +192,43 @@ void printbar(unsigned int width)
     printf("\n");
 }
 
-void analysis_table(Node **keys_table, unsigned int keys_table_size, unsigned int hash_count)
+unsigned int count_of_counts_most_digits(CountEntry *count_of_counts)
 {
     CountEntry *count_entry, *tmp; // Variables for iteraton
-    unsigned int most_digits;
-    CountEntry *count_of_counts = create_count_of_counts(keys_table, keys_table_size, &most_digits);
+    unsigned int most_digits = 1;
+    HASH_ITER(hh, count_of_counts, count_entry, tmp)
+    {
+        most_digits = maxuint(most_digits, get_digit_count(count_entry->id));
+        most_digits = maxuint(most_digits, get_digit_count(count_entry->num_values));
+    }
+    return most_digits;
+}
+
+void analysis_table(Node **keys_table, unsigned int keys_table_size, unsigned int hash_count)
+{
+    CountEntry *count_of_counts = create_count_of_counts(keys_table, keys_table_size);
+
+    unsigned int most_digits = count_of_counts_most_digits(count_of_counts);
+
+    const unsigned int width = most_digits * 2 + 3;
+    unsigned long long counts_sum = 0;
 
     printf("The following table is to be read like this: ");
     printf("[Column 1] number of keys were returned [Column 2] number of times.\n");
 
     HASH_SORT(count_of_counts, sort_by_id);
-    const unsigned int width = most_digits * 2 + 3;
-    unsigned long long counts_sum = 0;
     printbar(width);
+    CountEntry *count_entry, *tmp; // Variables for iteraton
     HASH_ITER(hh, count_of_counts, count_entry, tmp)
     {
+        unsigned int nv_digits = get_digit_count(count_entry->num_values);
+        unsigned int id_digits = get_digit_count(count_entry->id);
+
         printf("|%li", count_entry->num_values);
-        for (unsigned int i = 0; i < most_digits - count_entry->num_values_digits; i++)
+        for (unsigned int i = 0; i < most_digits - nv_digits; i++)
             printf(" ");
         printf("|%li", count_entry->id);
-        for (unsigned int i = 0; i < most_digits - count_entry->id_digits; i++)
+        for (unsigned int i = 0; i < most_digits - id_digits; i++)
             printf(" ");
         printf("|\n");
         counts_sum += count_entry->num_values * count_entry->id;

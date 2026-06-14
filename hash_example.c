@@ -45,9 +45,7 @@ void final(void *ctx,
 {
     u8p5_ctx *context = (u8p5_ctx *)ctx;
     RETURN_TYPE r;
-    if (rand() % 2 == 0)
-        r = (RETURN_TYPE)(uint8_t)context->words[0] + 5;
-    else
+    context->words[0]++;
         r = rand() % 2;
     memcpy(out, &r, sizeof(RETURN_TYPE));
 }
