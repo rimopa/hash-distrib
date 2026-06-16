@@ -11,7 +11,7 @@ SRC      := main.c
 ADDITIONAL := hash_distribution.c readers.c
 
 HASHLIB  := libhash.so
-HASHSRC  ?= hash_example.c
+HASHSRC  ?= hash-algorithms/sha256.c
 
 ARGS ?= -m binary
 TESTDATA ?= testdata/*
