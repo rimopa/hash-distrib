@@ -34,7 +34,7 @@ HashAPI get_hash_api(void *handle)
 {
     char *error;
     HashAPI (*hash_api_func)(void) = dlsym(handle, HASH_API_FUNC_NAME);
-    if ((error = dlerror()) != NULL)
+    if ((error = dlerror()) != nullptr)
     {
         fputs(error, stderr);
         exit(4);
@@ -77,8 +77,8 @@ void read_args(int argc, char *argv[], char **hashpath, unsigned int *nfiles, bo
     // Read options. I learnt the syntax from Claude Sonnet 4.6:
     optind = 2;
     int opt;
-    char *mode_string = NULL;
-    while ((opt = getopt(argc, argv, "vhm:")) != -1)
+    char *mode_string = nullptr;
+    while ((opt = getopt(argc, argv, "hdstvm:")) != -1)
     {
         switch (opt)
         {
@@ -98,7 +98,7 @@ void read_args(int argc, char *argv[], char **hashpath, unsigned int *nfiles, bo
             abort();
         }
     }
-    if (mode_string == NULL)
+    if (mode_string == nullptr)
         *mode_pointer = 0;
     else
     {
@@ -134,7 +134,7 @@ unsigned int process_lines(HashAPI hash_api, void *ctx, Node **keys_table, unsig
 {
     unsigned int local_hash_count = 0;
     unsigned char *hash_key_pointer;
-    char *line = NULL;
+    char *line = nullptr;
     size_t len = 0;
 
     while (getline(&line, &len, file_pointer) != -1)
@@ -155,7 +155,7 @@ unsigned int process_lines(HashAPI hash_api, void *ctx, Node **keys_table, unsig
 // Return valid hashes from file
 unsigned int process_file(HashAPI hash_api, void *ctx, Node **keys_table, unsigned int keys_table_size, const char *path, bool verbose, unsigned long long *distinct_keys_count_pointer, int mode)
 {
-    FILE *file_pointer = NULL;
+    FILE *file_pointer = nullptr;
     unsigned int returnval = 0;
 
     if (mode == 0)

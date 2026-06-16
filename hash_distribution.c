@@ -44,7 +44,7 @@ Node *new_node(unsigned char *hash_key_pointer, unsigned long long *distinct_key
     Node *new = malloc(sizeof(Node));
     new->key_pointer = hash_key_pointer;
     new->count = 1;
-    new->next = NULL;
+    new->next = nullptr;
     (*distinct_keys_count_pointer)++;
     return new;
 }
@@ -72,7 +72,7 @@ void keys_table_add(Node **keys_table, unsigned int keys_table_size, size_t key_
     if (verbose)
         printf("Using bucket %d/%d\n", index, keys_table_size);
 
-    if (keys_table[index] == NULL)
+    if (keys_table[index] == nullptr)
     {
         keys_table[index] = new_node(hash_key_pointer, distinct_keys_count_pointer);
         if (verbose)
@@ -90,7 +90,7 @@ void keys_table_add(Node **keys_table, unsigned int keys_table_size, size_t key_
                 printf("Already found in keys table, count of node++ and memory freed\n");
             break;
         }
-        else if (current->next == NULL)
+        else if (current->next == nullptr)
         {
             current->next = new_node(hash_key_pointer, distinct_keys_count_pointer);
             if (verbose)
@@ -137,7 +137,7 @@ void count_of_counts_add(CountEntry **count_of_counts, unsigned long long key)
 {
     CountEntry *s;
     HASH_FIND_INT(*count_of_counts, &key, s);
-    if (s != NULL)
+    if (s != nullptr)
     {
         s->num_values++;
         return;
@@ -153,10 +153,10 @@ void count_of_counts_add(CountEntry **count_of_counts, unsigned long long key)
 
 CountEntry *create_count_of_counts(Node **keys_table, unsigned int keys_table_size)
 {
-    CountEntry *count_of_counts = NULL; // empty map
+    CountEntry *count_of_counts = nullptr; // empty map
     for (unsigned int i = 0; i < keys_table_size; i++)
     {
-        if (keys_table[i] == NULL)
+        if (keys_table[i] == nullptr)
             continue;
 
         Node *n = keys_table[i];
@@ -164,7 +164,7 @@ CountEntry *create_count_of_counts(Node **keys_table, unsigned int keys_table_si
         while (true)
         {
             count_of_counts_add(&count_of_counts, n->count);
-            if (n->next == NULL)
+            if (n->next == nullptr)
                 break;
             n = n->next;
         }
