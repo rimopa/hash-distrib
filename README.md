@@ -9,8 +9,8 @@ How to use hash-distrib
 | libhash.so | Shared library containing the corresponding hash API |
 | file       | Files to hash with libhash.so                        |
 | -v         | Verbose flag                                         |
-| -d         | Print details of how many times each key was returned                                         |
-| -t         | Print a table reflecting how common each number of times a key was returned is                                         |
+| -d         | Print details of how many times each key was returned|
+| -t         | Print a table showing, for each return count, how many distinct keys were returned that many times (e.g. a row showing 9 1 means 9 keys were each returned once).|
 | -m binary  | Default mode, hash whole files as binary data        |
 | -m line    | Line mode, hash each line of a text file             |
 
@@ -28,26 +28,27 @@ A quick way to try out hash-distrib.
 
 1. Clone the repo.
   ```sh
-  ~$ git clone --recursive https://github.com/rimopa/hash-distrib
+  git clone --recursive https://github.com/rimopa/hash-distrib
   ```
 
 2. In the repo folder, build the provided algorithm of your choice as a shared library. For example, SHA256. This will let hash-distrib access its functions on the fly.
   ```sh
-  ~/hash-distrib$ gcc -shared -fPIC hash-algorithms/sha256.c -o libsha256.so
+  cd hash-distrib
+  gcc -shared -fPIC hash-algorithms/sha256.c -o libsha256.so
   ```
 
 3. If you don't have it already, get the compiled hash-distrib.
   ```sh
-  ~/hash-distrib$ make hash-distrib
+  make hash-distrib
   ```
 
 4. Run hash-distrib with your dataset!
   ```
-  $ ./hash-distrib ./libsha256.so my_data_folder/data.dat other_data/2nd_data.png …
+  ./hash-distrib ./libsha256.so my_data_folder/data.dat other_data/2nd_data.png …
   ```
   or, if you'd prefer to hash lines of text instead of whole files:
   ```
-  $ ./hash-distrib ./libsha256.so -m line dataset1/poem.txt even_more_data/datacenter.csv …
+  ./hash-distrib ./libsha256.so -m line dataset1/poem.txt even_more_data/datacenter.csv …
   ```
 
 ## Adapting your hash
@@ -131,7 +132,7 @@ gcc -shared -fPIC awesome_algo.c -o libawa.so
 4. Get your dataset analysed!
 
 ```sh
-hash-distrib ./libawa.so testdata.xyz testpicture.png …
+./hash-distrib ./libawa.so testdata.xyz testpicture.png …
 ```
 
 ## Used resources
