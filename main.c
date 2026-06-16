@@ -14,8 +14,11 @@
 #include "hash_api.h"
 
 #define HASH_API_FUNC_NAME "hash_api"
+#define OUT_SIZE_LOWER_BOUND 2
+#define OUT_SIZE_UPPER_BOUND 256
 
-static void usage(const char *prog)
+static void
+usage(const char *prog)
 {
     fprintf(stderr,
             "Usage: %s <libhash.so> [options] <file>...\n"
@@ -24,6 +27,9 @@ static void usage(const char *prog)
             "  file             Files to hash with libhash.so\n"
             "\n"
             "  Options:\n"
+            "  -d               Print details of how many times each key was returned\n"
+            //"  -s               Scatter plot of returned values (x=key, y=times returned). Requires gnuplot to be in PATH\n"
+            "  -t               Print a table reflecting how common each number of times a key was returned is\n"
             "  -v               Verbose\n"
             "  -m binary        Default. Hash whole files as binary data\n"
             "  -m line          Open files as text and hash each line (text separated by \\n)\n",
@@ -64,7 +70,7 @@ int choose_mode(char *mode_string)
         return -1;
 }
 
-void read_args(int argc, char *argv[], char **hashpath, unsigned int *nfiles, bool *verbose, int *mode_pointer)
+void read_args(int argc, char *argv[], char **hashpath, unsigned int *nfiles, int *mode_pointer, bool *verbose_pointer, bool *table_pointer, bool *details_pointer, bool *scatter_pointer)
 {
     if (argc < 2)
     {
@@ -82,15 +88,24 @@ void read_args(int argc, char *argv[], char **hashpath, unsigned int *nfiles, bo
     {
         switch (opt)
         {
-        case 'm':
-            mode_string = optarg;
-            break;
-        case 'v':
-            *verbose = true;
-            break;
         case 'h':
             usage(argv[0]);
             exit(0);
+        case 'd':
+            *details_pointer = true;
+            break;
+        case 's':
+            *scatter_pointer = true;
+            break;
+        case 't':
+            *table_pointer = true;
+            break;
+        case 'v':
+            *verbose_pointer = true;
+            break;
+        case 'm':
+            mode_string = optarg;
+            break;
         case '?':
             usage(argv[0]);
             exit(2);
@@ -122,14 +137,6 @@ void read_filepaths(char *argv[], int nfiles, const char *filepaths[])
     }
 }
 
-void print_key_bytes(unsigned char *pointer, size_t bytes)
-{
-    printf("Returned key bytes: ");
-    for (unsigned int i = 0; i < bytes - 1; i++)
-        printf("%i, ", pointer[i]);
-    printf("%i\n", pointer[bytes - 1]);
-}
-
 unsigned int process_lines(HashAPI hash_api, void *ctx, Node **keys_table, unsigned int keys_table_size, bool verbose, unsigned long long *distinct_keys_count_pointer, FILE *file_pointer)
 {
     unsigned int local_hash_count = 0;
@@ -144,7 +151,7 @@ unsigned int process_lines(HashAPI hash_api, void *ctx, Node **keys_table, unsig
         hash_key_pointer = malloc(hash_api.out_size);
         string_hash(hash_api, ctx, hash_key_pointer, line);
         if (verbose)
-            print_key_bytes(hash_key_pointer, hash_api.out_size);
+            print_bytes_hex(hash_key_pointer, hash_api.out_size, true);
         keys_table_add(keys_table, keys_table_size, hash_api.out_size, hash_key_pointer, verbose, distinct_keys_count_pointer);
         local_hash_count++;
     }
@@ -175,7 +182,7 @@ unsigned int process_file(HashAPI hash_api, void *ctx, Node **keys_table, unsign
         unsigned char *hash_key_pointer = malloc(hash_api.out_size);
         binary_hash(hash_api, ctx, file_pointer, hash_key_pointer);
         if (verbose)
-            print_key_bytes(hash_key_pointer, hash_api.out_size);
+            print_bytes_hex(hash_key_pointer, hash_api.out_size, true);
         keys_table_add(keys_table, keys_table_size, hash_api.out_size, hash_key_pointer, verbose, distinct_keys_count_pointer);
         returnval = 1;
     }
@@ -206,14 +213,25 @@ void process_files(HashAPI hash_api, Node **keys_table, unsigned int keys_table_
     free(ctx);
 }
 
+bool is_valid_out_size(size_t out_size)
+{
+    if (out_size < 2 || out_size > 256)
+    {
+        printf("Invalid out_size: must be %d <= out_size <=%d, got %zu.\n", OUT_SIZE_LOWER_BOUND, OUT_SIZE_UPPER_BOUND, out_size);
+        return false;
+    }
+    return true;
+}
+
 int main(int argc, char *argv[])
 {
     char *hashpath;
     int mode;
-    bool verbose;
+    bool verbose, table, details, scatter;
+    verbose = table = scatter = details = false;
     unsigned int nfiles;
 
-    read_args(argc, argv, &hashpath, &nfiles, &verbose, &mode);
+    read_args(argc, argv, &hashpath, &nfiles, &mode, &verbose, &table, &details, &scatter);
 
     const char *filepaths[nfiles];
 
@@ -223,9 +241,8 @@ int main(int argc, char *argv[])
 
     const HashAPI hash_api = get_hash_api(handle);
 
-    if (hash_api.out_size < 2 || hash_api.out_size > 256)
+    if (!is_valid_out_size(hash_api.out_size))
     {
-        printf("Invalid out_size: must be 2 <= out_size <=256, got %zu.\n", hash_api.out_size);
         dlclose(handle);
         return 5;
     }
@@ -238,7 +255,7 @@ int main(int argc, char *argv[])
 
     process_files(hash_api, keys_table, keys_table_size, filepaths, nfiles, &valid_hashes_count, verbose, &distinct_keys_count, mode);
 
-    analyse(keys_table, keys_table_size, hash_api, distinct_keys_count, valid_hashes_count, nfiles);
+    analyse(keys_table, keys_table_size, hash_api, distinct_keys_count, valid_hashes_count, nfiles, table, scatter, details);
 
     destroy_keys_table(keys_table, keys_table_size);
 

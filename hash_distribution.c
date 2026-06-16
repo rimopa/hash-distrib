@@ -6,6 +6,8 @@
 
 #include "hash_api.h"
 
+#define MAX_DETAILS_KEYS 50
+
 // Use https://github.com/troydhanson/uthash for count of counts hash table, Claude Opus 4.6's recommendation
 typedef struct
 {
@@ -204,16 +206,22 @@ unsigned int count_of_counts_most_digits(CountEntry *count_of_counts)
     return most_digits;
 }
 
-void analysis_table(Node **keys_table, unsigned int keys_table_size, unsigned int valid_hashes_count)
+void print_mean(unsigned long long sum, unsigned int valid_hashes_count)
+{
+    printf("\nMean of counts: %.3f\n", (float)sum / valid_hashes_count);
+    printf("The closer the mean is to 1, the more the keys that were returned only once\n");
+    printf("The bigger it is, the more repeated the keys your hash function returned\n");
+}
+
+void analysis_table(Node **keys_table, unsigned int keys_table_size)
 {
     CountEntry *count_of_counts = create_count_of_counts(keys_table, keys_table_size);
 
     unsigned int most_digits = count_of_counts_most_digits(count_of_counts);
 
     const unsigned int width = most_digits * 2 + 3;
-    unsigned long long counts_sum = 0;
 
-    printf("The following table is to be read like this: ");
+    printf("\nThe following table is to be read like this: ");
     printf("[Column 1] number of keys were returned [Column 2] number of times.\n");
 
     HASH_SORT(count_of_counts, sort_by_id);
@@ -231,42 +239,121 @@ void analysis_table(Node **keys_table, unsigned int keys_table_size, unsigned in
         for (unsigned int i = 0; i < most_digits - id_digits; i++)
             printf(" ");
         printf("|\n");
-        counts_sum += count_entry->num_values * count_entry->id;
     }
     printbar(width);
-    printf("\n");
-
-    printf("Mean of counts: %.3f\n", (float)counts_sum / valid_hashes_count);
-    printf("The closer the mean is to 1, the more the keys that were returned only once\n");
-    printf("The bigger it is, the more repeated the keys your hash function returned\n");
 
     destroy_count_of_counts(count_of_counts);
 }
 
-void analyse(Node **keys_table, unsigned int keys_table_size, HashAPI hash_api, unsigned long long distinct_keys_count, unsigned int valid_hashes_count, unsigned int nfiles)
+void print_bytes_hex(unsigned char *pointer, size_t bytes, bool description)
 {
-    printbar(79);
-    printf("Distribution analysis of '%s' hash function:\n", hash_api.name);
-    printf("\n");
-    printf("%i/%i hashes returned.\n", valid_hashes_count, nfiles);
-    printf("Out of 2^%zu possible, %lli distinct keys were returned.\n", hash_api.out_size * 8, distinct_keys_count);
-    printf("\n");
+    if (description)
+        printf("Returned key: ");
+    printf("0x");
+    for (size_t i = 0; i < bytes; i++)
+        printf("%02X", pointer[i]);
+    if (description)
+        printf("\n");
+}
 
-    if (distinct_keys_count == 0 || valid_hashes_count <= 1)
-        return;
-
-    if (distinct_keys_count == 1)
+void analysis_details(HashAPI hash_api, Node **keys_table, unsigned int keys_table_size)
+{
+    printf("\n");
+    Node *current_node = nullptr;
+    for (unsigned long i = 0; i < keys_table_size; i++)
     {
-        printf("Wow, you got exactly the same key every time!\n"
+        if (keys_table[i] == nullptr)
+            continue;
+        current_node = keys_table[i];
+        while (true)
+        {
+            printf("The key ");
+            print_bytes_hex(current_node->key_pointer, hash_api.out_size, false);
+            printf(" was returned %llu times\n", current_node->count);
+
+            if (current_node->next == nullptr)
+                break;
+            current_node = current_node->next;
+        }
+    }
+}
+
+unsigned long long get_counts_sum(Node **keys_table, unsigned int keys_table_size)
+{
+    unsigned long long counts_sum = 0;
+    Node *current_node = nullptr;
+    for (unsigned long i = 0; i < keys_table_size; i++)
+    {
+        if (keys_table[i] == nullptr)
+            continue;
+        current_node = keys_table[i];
+        while (true)
+        {
+
+            counts_sum += current_node->count;
+            if (current_node->next == nullptr)
+                break;
+            current_node = current_node->next;
+        }
+    }
+    return counts_sum;
+}
+
+void analyse(Node **keys_table, unsigned int keys_table_size, HashAPI hash_api, unsigned long long distinct_keys_count, unsigned int valid_hashes_count, unsigned int nfiles, bool table, bool scatter, bool details)
+{
+    if (valid_hashes_count < 1)
+    {
+        printf("\nNo valid hashes were returned, no possible analysis.\n");
+        return;
+    }
+
+    printf("\n");
+    printbar(79);
+    printf(
+        "Distribution analysis of '%s' hash function:\n\n"
+        "%i hashes in %i files were returned\n"
+        "Out of 2^%zu possible, %lli distinct keys were returned\n",
+        hash_api.name, valid_hashes_count, nfiles, hash_api.out_size * 8, distinct_keys_count);
+
+    if ((valid_hashes_count == 1) && !(details || scatter || table))
+    {
+        analysis_details(hash_api, keys_table, keys_table_size);
+        return;
+    }
+
+    if (distinct_keys_count == 1 && valid_hashes_count > 1)
+    {
+        printf("\nWow, you got exactly the same key every time!\n"
                "If you plan to use a hash table for this kind of dataset and hash function,\n"
                "it's going to be a linked list with some extra steps and edge cases.\n");
     }
     else if (distinct_keys_count == valid_hashes_count)
     {
-        printf("Wow, your returned keys were all different!\n"
+        printf("\nWow, your returned keys were all different!\n"
                "If you plan to use a hash table for this kind of dataset and hash function,\n"
                "it's going to be an array with some extra steps and edge cases.\n");
     }
-    else
-        analysis_table(keys_table, keys_table_size, valid_hashes_count);
+    else if (!table && !scatter && !details)
+    {
+        if (distinct_keys_count <= MAX_DETAILS_KEYS)
+            details = true;
+        else
+            table = true;
+    }
+
+    if (details)
+        analysis_details(hash_api, keys_table, keys_table_size);
+
+    if (scatter)
+    {
+        printf("\nScaterplot not yet implemented\n");
+        // analysis_scatter(keys_table, keys_table_size, valid_hashes_count);
+        // Not yet implemented
+    }
+
+    if (table)
+        analysis_table(keys_table, keys_table_size);
+
+    if (table || details)
+        print_mean(get_counts_sum(keys_table, keys_table_size), valid_hashes_count);
 }
