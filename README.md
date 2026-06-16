@@ -9,15 +9,17 @@ How to use hash-distrib
 | libhash.so | Shared library containing the corresponding hash API |
 | file       | Files to hash with libhash.so                        |
 | -v         | Verbose flag                                         |
+| -d         | Print details of how many times each key was returned                                         |
+| -t         | Print a table reflecting how common each number of times a key was returned is                                         |
 | -m binary  | Default mode, hash whole files as binary data        |
 | -m line    | Line mode, hash each line of a text file             |
 
 Examples:
 ```sh
-hash-distrib libhash.so                         data.xyz and.yzx also.zxy even.xlsx
-hash-distrib lib_my_better_hash.so -m line      data.txt 
-hash-distrib librother.so          -v -m line   hellosekai.c helloworld.h hellomundo.asm
-hash-distrib libhashman.so         -m binary -v data.pdf data2.pdf data3.pdf
+hash-distrib libhash.so                          data.xyz and.yzx also.zxy even.xlsx
+hash-distrib lib_my_better_hash.so -m line -d    data.txt 
+hash-distrib librother.so          -v -m line -t hellosekai.c helloworld.h hellomundo.asm
+hash-distrib libhashman.so         -m binary -v  data.pdf data2.pdf data3.pdf
 ```
 
 ## Testing
