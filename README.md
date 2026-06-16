@@ -16,10 +16,10 @@ How to use hash-distrib
 
 Examples:
 ```sh
-hash-distrib libhash.so                          data.xyz and.yzx also.zxy even.xlsx
-hash-distrib lib_my_better_hash.so -m line -d    data.txt 
-hash-distrib librother.so          -v -m line -t hellosekai.c helloworld.h hellomundo.asm
-hash-distrib libhashman.so         -m binary -v  data.pdf data2.pdf data3.pdf
+./hash-distrib libhash.so                          data.xyz and.yzx also.zxy even.xlsx
+./hash-distrib lib_my_better_hash.so -m line -d    data.txt 
+./hash-distrib librother.so          -v -m line -t hellosekai.c helloworld.h hellomundo.asm
+./hash-distrib libhashman.so         -m binary -v  data.pdf data2.pdf data3.pdf
 ```
 
 ## Testing
