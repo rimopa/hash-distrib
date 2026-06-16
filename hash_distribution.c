@@ -7,11 +7,12 @@
 #include "hash_api.h"
 
 #define MAX_DETAILS_KEYS 50
+#define DATA_PATH "/tmp/hash-distrib-data.txt"
 
 // Use https://github.com/troydhanson/uthash for count of counts hash table, Claude Opus 4.6's recommendation
 typedef struct
 {
-    unsigned long int id;     // Number of times a hash appears
+    unsigned long id;         // Number of times a hash appears
     unsigned long num_values; // Number of hashes that appear that many times
     UT_hash_handle hh;
 } CountEntry;
@@ -187,6 +188,17 @@ void destroy_count_of_counts(CountEntry *count_of_counts)
 
 // Analysis
 
+void print_bytes_hex(unsigned char *pointer, size_t bytes, bool description)
+{
+    if (description)
+        printf("Returned key: ");
+    printf("0x");
+    for (size_t i = 0; i < bytes; i++)
+        printf("%02X", pointer[i]);
+    if (description)
+        printf("\n");
+}
+
 void printbar(unsigned int width)
 {
     for (unsigned int i = 0; i < width; i++)
@@ -217,14 +229,14 @@ void analysis_table(Node **keys_table, unsigned int keys_table_size)
 {
     CountEntry *count_of_counts = create_count_of_counts(keys_table, keys_table_size);
 
-    unsigned int most_digits = count_of_counts_most_digits(count_of_counts);
+    HASH_SORT(count_of_counts, sort_by_id);
 
+    unsigned int most_digits = count_of_counts_most_digits(count_of_counts);
     const unsigned int width = most_digits * 2 + 3;
 
     printf("\nThe following table is to be read like this: ");
     printf("[Column 1] number of keys were returned [Column 2] number of times.\n");
 
-    HASH_SORT(count_of_counts, sort_by_id);
     printbar(width);
     CountEntry *count_entry, *tmp; // Variables for iteraton
     HASH_ITER(hh, count_of_counts, count_entry, tmp)
@@ -245,15 +257,46 @@ void analysis_table(Node **keys_table, unsigned int keys_table_size)
     destroy_count_of_counts(count_of_counts);
 }
 
-void print_bytes_hex(unsigned char *pointer, size_t bytes, bool description)
+int write_to_file(Node **keys_table, unsigned int keys_table_size, char *path, size_t key_size)
 {
-    if (description)
-        printf("Returned key: ");
-    printf("0x");
-    for (size_t i = 0; i < bytes; i++)
-        printf("%02X", pointer[i]);
-    if (description)
-        printf("\n");
+    FILE *file_pointer;
+    file_pointer = fopen(path, "w");
+
+    if (file_pointer == nullptr)
+    {
+        perror(path);
+        fprintf(stderr, "Could not open %s\n", path);
+        return 1;
+    }
+
+    Node *current_node = nullptr;
+    size_t elements_written;
+
+    for (unsigned long i = 0; i < keys_table_size; i++)
+    {
+        if (keys_table[i] == nullptr)
+            continue;
+        current_node = keys_table[i];
+        while (true)
+        {
+            elements_written = fwrite(current_node->key_pointer, key_size, 1, file_pointer);
+            if (elements_written != 1)
+            {
+                fprintf(stderr, "Error writing key to %s", path);
+                return 2;
+            }
+
+            fprintf(file_pointer, " %llu", current_node->count);
+
+            if (current_node->next == nullptr)
+                break;
+            current_node = current_node->next;
+        }
+    }
+
+    fclose(file_pointer);
+
+    return 0;
 }
 
 void analysis_details(HashAPI hash_api, Node **keys_table, unsigned int keys_table_size)
@@ -299,7 +342,7 @@ unsigned long long get_counts_sum(Node **keys_table, unsigned int keys_table_siz
     return counts_sum;
 }
 
-void analyse(Node **keys_table, unsigned int keys_table_size, HashAPI hash_api, unsigned long long distinct_keys_count, unsigned int valid_hashes_count, unsigned int nfiles, bool table, bool scatter, bool details)
+void analyse(Node **keys_table, unsigned int keys_table_size, HashAPI hash_api, unsigned long long distinct_keys_count, unsigned int valid_hashes_count, unsigned int nfiles, bool table, bool details)
 {
     if (valid_hashes_count < 1)
     {
@@ -315,7 +358,7 @@ void analyse(Node **keys_table, unsigned int keys_table_size, HashAPI hash_api, 
         "Out of 2^%zu possible, %lli distinct keys were returned\n",
         hash_api.name, valid_hashes_count, nfiles, hash_api.out_size * 8, distinct_keys_count);
 
-    if ((valid_hashes_count == 1) && !(details || scatter || table))
+    if ((valid_hashes_count == 1) && !(details || table))
     {
         analysis_details(hash_api, keys_table, keys_table_size);
         return;
@@ -333,7 +376,7 @@ void analyse(Node **keys_table, unsigned int keys_table_size, HashAPI hash_api, 
                "If you plan to use a hash table for this kind of dataset and hash function,\n"
                "it's going to be an array with some extra steps and edge cases.\n");
     }
-    else if (!table && !scatter && !details)
+    else if (!table && !details)
     {
         if (distinct_keys_count <= MAX_DETAILS_KEYS)
             details = true;
@@ -343,13 +386,6 @@ void analyse(Node **keys_table, unsigned int keys_table_size, HashAPI hash_api, 
 
     if (details)
         analysis_details(hash_api, keys_table, keys_table_size);
-
-    if (scatter)
-    {
-        printf("\nScaterplot not yet implemented\n");
-        // analysis_scatter(keys_table, keys_table_size, valid_hashes_count);
-        // Not yet implemented
-    }
 
     if (table)
         analysis_table(keys_table, keys_table_size);

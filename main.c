@@ -28,7 +28,6 @@ usage(const char *prog)
             "\n"
             "  Options:\n"
             "  -d               Print details of how many times each key was returned\n"
-            //"  -s               Scatter plot of returned values (x=key, y=times returned). Requires gnuplot to be in PATH\n"
             "  -t               Print a table reflecting how common each number of times a key was returned is\n"
             "  -v               Verbose\n"
             "  -m binary        Default. Hash whole files as binary data\n"
@@ -70,7 +69,7 @@ int choose_mode(char *mode_string)
         return -1;
 }
 
-void read_args(int argc, char *argv[], char **hashpath, unsigned int *nfiles, int *mode_pointer, bool *verbose_pointer, bool *table_pointer, bool *details_pointer, bool *scatter_pointer)
+void read_args(int argc, char *argv[], char **hashpath, unsigned int *nfiles, int *mode_pointer, bool *verbose_pointer, bool *table_pointer, bool *details_pointer)
 {
     if (argc < 2)
     {
@@ -84,7 +83,7 @@ void read_args(int argc, char *argv[], char **hashpath, unsigned int *nfiles, in
     optind = 2;
     int opt;
     char *mode_string = nullptr;
-    while ((opt = getopt(argc, argv, "hdstvm:")) != -1)
+    while ((opt = getopt(argc, argv, "hdtvm:")) != -1)
     {
         switch (opt)
         {
@@ -94,8 +93,6 @@ void read_args(int argc, char *argv[], char **hashpath, unsigned int *nfiles, in
         case 'd':
             *details_pointer = true;
             break;
-        case 's':
-            *scatter_pointer = true;
             break;
         case 't':
             *table_pointer = true;
@@ -170,7 +167,7 @@ unsigned int process_file(HashAPI hash_api, void *ctx, Node **keys_table, unsign
     else if (mode == 1)
         file_pointer = fopen(path, "r");
 
-    if (!file_pointer)
+    if (file_pointer == nullptr)
     {
         perror(path);
         fprintf(stderr, "Could not open %s\nSkipping…\n", path);
@@ -227,11 +224,11 @@ int main(int argc, char *argv[])
 {
     char *hashpath;
     int mode;
-    bool verbose, table, details, scatter;
-    verbose = table = scatter = details = false;
+    bool verbose, table, details;
+    verbose = table = details = false;
     unsigned int nfiles;
-
-    read_args(argc, argv, &hashpath, &nfiles, &mode, &verbose, &table, &details, &scatter);
+    
+    read_args(argc, argv, &hashpath, &nfiles, &mode, &verbose, &table, &details);
 
     const char *filepaths[nfiles];
 
@@ -255,7 +252,7 @@ int main(int argc, char *argv[])
 
     process_files(hash_api, keys_table, keys_table_size, filepaths, nfiles, &valid_hashes_count, verbose, &distinct_keys_count, mode);
 
-    analyse(keys_table, keys_table_size, hash_api, distinct_keys_count, valid_hashes_count, nfiles, table, scatter, details);
+    analyse(keys_table, keys_table_size, hash_api, distinct_keys_count, valid_hashes_count, nfiles, table, details);
 
     destroy_keys_table(keys_table, keys_table_size);
 

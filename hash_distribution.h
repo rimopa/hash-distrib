@@ -22,6 +22,6 @@ void destroy_keys_table(Node **keys_table, unsigned int keys_table_size);
 
 // Analysis
 void print_bytes_hex(unsigned char *pointer, size_t bytes, bool description);
-void analyse(Node **keys_table, unsigned int keys_table_size, HashAPI hash_api, unsigned long long node_count, unsigned int valid_hashes_count, unsigned int nfiles, bool table, bool scatter, bool details);
+void analyse(Node **keys_table, unsigned int keys_table_size, HashAPI hash_api, unsigned long long node_count, unsigned int valid_hashes_count, unsigned int nfiles, bool table, bool details);
 
 #endif
