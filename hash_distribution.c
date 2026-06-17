@@ -39,9 +39,9 @@ unsigned int get_digit_count(int n) // Inspired by https://www.programiz.com/c-p
 
 KeyDB create_key_db(unsigned int size)
 {
-    Node **keys_table = calloc(size, sizeof(Node *));
+    Node **table = calloc(size, sizeof(Node *));
     KeyDB key_db = {
-        .keys_table = keys_table,
+        .table = table,
         .size = size};
     return key_db; 
 }
@@ -79,14 +79,14 @@ void key_db_add(KeyDB key_db, size_t key_size, unsigned char *hash_key_pointer, 
     if (verbose)
         printf("Using bucket %d/%d\n", index, key_db.size);
 
-    if (key_db.keys_table[index] == nullptr)
+    if (key_db.table[index] == nullptr)
     {
-        key_db.keys_table[index] = new_node(hash_key_pointer, distinct_keys_count_pointer);
+        key_db.table[index] = new_node(hash_key_pointer, distinct_keys_count_pointer);
         if (verbose)
             printf("Added as new node at head of bucket\n");
         return;
     }
-    Node *current = key_db.keys_table[index];
+    Node *current = key_db.table[index];
     while (true)
     {
         if (memcmp(current->key_pointer, hash_key_pointer, key_size) == 0)
@@ -113,7 +113,7 @@ void destroy_key_db(KeyDB key_db)
 {
     for (unsigned int i = 0; i < key_db.size; i++)
     {
-        Node *cur = key_db.keys_table[i];
+        Node *cur = key_db.table[i];
         while (cur)
         {
             Node *next = cur->next;
@@ -122,7 +122,7 @@ void destroy_key_db(KeyDB key_db)
             cur = next;
         }
     }
-    free(key_db.keys_table);
+    free(key_db.table);
 }
 
 // Count of counts table
@@ -163,10 +163,10 @@ CountEntry *create_count_of_counts(KeyDB key_db)
     CountEntry *count_of_counts = nullptr; // empty map
     for (unsigned int i = 0; i < key_db.size; i++)
     {
-        if (key_db.keys_table[i] == nullptr)
+        if (key_db.table[i] == nullptr)
             continue;
 
-        Node *n = key_db.keys_table[i];
+        Node *n = key_db.table[i];
 
         while (true)
         {
@@ -278,9 +278,9 @@ int write_to_file(KeyDB key_db, char *path, size_t key_size)
 
     for (unsigned long i = 0; i < key_db.size; i++)
     {
-        if (key_db.keys_table[i] == nullptr)
+        if (key_db.table[i] == nullptr)
             continue;
-        current_node = key_db.keys_table[i];
+        current_node = key_db.table[i];
         while (true)
         {
             elements_written = fwrite(current_node->key_pointer, key_size, 1, file_pointer);
@@ -309,9 +309,9 @@ void analysis_details(HashAPI hash_api, KeyDB key_db)
     Node *current_node = nullptr;
     for (unsigned long i = 0; i < key_db.size; i++)
     {
-        if (key_db.keys_table[i] == nullptr)
+        if (key_db.table[i] == nullptr)
             continue;
-        current_node = key_db.keys_table[i];
+        current_node = key_db.table[i];
         while (true)
         {
             printf("The key ");
@@ -331,9 +331,9 @@ unsigned long long get_counts_sum(KeyDB key_db)
     Node *current_node = nullptr;
     for (unsigned long i = 0; i < key_db.size; i++)
     {
-        if (key_db.keys_table[i] == nullptr)
+        if (key_db.table[i] == nullptr)
             continue;
-        current_node = key_db.keys_table[i];
+        current_node = key_db.table[i];
         while (true)
         {
 

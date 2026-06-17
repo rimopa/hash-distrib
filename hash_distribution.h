@@ -17,7 +17,7 @@ typedef struct Node
 
 typedef struct
 {
-    Node **keys_table;
+    Node **table;
     unsigned int size;
 } KeyDB;
 

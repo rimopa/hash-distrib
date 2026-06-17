@@ -267,8 +267,7 @@ int main(int argc, char *argv[])
     unsigned int valid_hashes_count = 0;
     unsigned long long distinct_keys_count = 0;
 
-    const unsigned int keys_table_size = hash_api.out_size * hash_api.out_size;
-    KeyDB key_db = create_key_db(keys_table_size);
+    KeyDB key_db = create_key_db(hash_api.out_size * hash_api.out_size);
 
     process_files(hash_api, key_db, filepaths, nfiles, &valid_hashes_count, verbose, &distinct_keys_count, mode);
 
