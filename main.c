@@ -155,37 +155,58 @@ unsigned int process_lines(HashAPI hash_api, void *ctx, Node **keys_table, unsig
     return local_hash_count;
 }
 
-// Return valid hashes from file
-unsigned int process_file(HashAPI hash_api, void *ctx, Node **keys_table, unsigned int keys_table_size, const char *path, bool verbose, unsigned long long *distinct_keys_count_pointer, int mode)
+unsigned int binary_process_file(HashAPI hash_api, void *ctx, Node **keys_table, unsigned int keys_table_size, bool verbose, unsigned long long *distinct_keys_count_pointer, const char *path, FILE *file_ptr)
 {
-    FILE *file_pointer = nullptr;
-    unsigned int returnval = 0;
-
-    if (mode == 0)
-        file_pointer = fopen(path, "rb");
-    else if (mode == 1)
-        file_pointer = fopen(path, "r");
-
-    if (file_pointer == nullptr)
+    unsigned char *hash_key_pointer = malloc(hash_api.out_size);
+    if (binary_hash(hash_api, ctx, file_ptr, hash_key_pointer) != 0)
     {
         perror(path);
-        fprintf(stderr, "Could not open %s\nSkipping…\n", path);
+        fprintf(stderr, "Error: Could not hash %s.\n", path);
         return 0;
     }
-
-    if (mode == 0)
+    else
     {
-        unsigned char *hash_key_pointer = malloc(hash_api.out_size);
-        binary_hash(hash_api, ctx, file_pointer, hash_key_pointer);
         if (verbose)
             print_bytes_hex(hash_key_pointer, hash_api.out_size, true);
         keys_table_add(keys_table, keys_table_size, hash_api.out_size, hash_key_pointer, verbose, distinct_keys_count_pointer);
-        returnval = 1;
+        return 1;
     }
-    else if (mode == 1)
-        returnval = process_lines(hash_api, ctx, keys_table, keys_table_size, verbose, distinct_keys_count_pointer, file_pointer);
+}
 
-    fclose(file_pointer);
+bool safe_fopen(const char *path, int mode, FILE **file_ptr_ptr)
+{
+    *file_ptr_ptr = nullptr;
+
+    if (mode == 0)
+        *file_ptr_ptr = fopen(path, "rb");
+    else if (mode == 1)
+        *file_ptr_ptr = fopen(path, "r");
+
+    if (*file_ptr_ptr == nullptr)
+    {
+        perror(path);
+        fprintf(stderr, "Could not open %s\nSkipping…\n", path);
+        return false;
+    }
+    else
+        return true;
+}
+
+// Return valid hashes from file
+unsigned int process_file(HashAPI hash_api, void *ctx, Node **keys_table, unsigned int keys_table_size, const char *path, bool verbose, unsigned long long *distinct_keys_count_pointer, int mode)
+{
+    FILE *file_ptr;
+    unsigned int returnval = 0;
+
+    if (!safe_fopen(path, mode, &file_ptr))
+        return 0;
+
+    if (mode == 0)
+        returnval = binary_process_file(hash_api, ctx, keys_table, keys_table_size, verbose, distinct_keys_count_pointer, path, file_ptr);
+    else if (mode == 1)
+        returnval = process_lines(hash_api, ctx, keys_table, keys_table_size, verbose, distinct_keys_count_pointer, file_ptr);
+
+    fclose(file_ptr);
     return returnval;
 }
 
@@ -226,7 +247,7 @@ int main(int argc, char *argv[])
     bool verbose, table, details;
     verbose = table = details = false;
     unsigned int nfiles;
-    
+
     read_args(argc, argv, &hashpath, &nfiles, &mode, &verbose, &table, &details);
 
     const char *filepaths[nfiles];
