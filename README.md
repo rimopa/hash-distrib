@@ -3,7 +3,7 @@ Tool for beginners to quickly and graphically see the distribution of keys of a 
 ## Usage
 How to use hash-distrib
 
-`hash-distrib <libhash.so> [options] <file> ...`
+`./hash-distrib <libhash.so> [options] <file> ...`
 | Name       | Meaning                                              |
 |------------|------------------------------------------------------|
 | libhash.so | Shared library containing the corresponding hash API |
