@@ -61,9 +61,9 @@ void *open_handle(const char *hashpath)
 int choose_mode(char *mode_string)
 {
     if (strcmp(mode_string, "b") == 0 || strcmp(mode_string, "bin") == 0 || strcmp(mode_string, "binary") == 0)
-        return 0;
+        return HASHING_MODE_BINARY;
     else if (strcmp(mode_string, "l") == 0 || strcmp(mode_string, "line") == 0)
-        return 1;
+        return HASHING_MODE_LINES;
     else
         return -1;
 }
@@ -110,7 +110,7 @@ void read_args(int argc, char *argv[], char **hashpath, unsigned int *nfiles, in
         }
     }
     if (mode_string == nullptr)
-        *mode_pointer = 0;
+        *mode_pointer = HASHING_MODE_BINARY;
     else
     {
         *mode_pointer = choose_mode(mode_string);
@@ -133,7 +133,7 @@ void read_filepaths(char *argv[], int nfiles, const char *filepaths[])
     }
 }
 
-unsigned int process_lines(HashAPI hash_api, void *ctx, KeyDB key_db, bool verbose, unsigned long long *distinct_keys_count_pointer, FILE *file_pointer)
+unsigned int process_lines(HashAPI hash_api, void *ctx, KeyDB key_db, bool verbose, FILE *file_pointer)
 {
     unsigned int local_hash_count = 0;
     unsigned char *hash_key_pointer;
@@ -148,14 +148,14 @@ unsigned int process_lines(HashAPI hash_api, void *ctx, KeyDB key_db, bool verbo
         string_hash(hash_api, ctx, hash_key_pointer, line);
         if (verbose)
             print_bytes_hex(hash_key_pointer, hash_api.out_size, true);
-        key_db_add(key_db, hash_api.out_size, hash_key_pointer, verbose, distinct_keys_count_pointer);
+        key_db_add(key_db, hash_api.out_size, hash_key_pointer, verbose);
         local_hash_count++;
     }
     free(line);
     return local_hash_count;
 }
 
-unsigned int binary_process_file(HashAPI hash_api, void *ctx, KeyDB key_db, bool verbose, unsigned long long *distinct_keys_count_pointer, const char *path, FILE *file_ptr)
+unsigned int binary_process_file(HashAPI hash_api, void *ctx, KeyDB key_db, bool verbose, const char *path, FILE *file_ptr)
 {
     unsigned char *hash_key_pointer = malloc(hash_api.out_size);
     if (binary_hash(hash_api, ctx, file_ptr, hash_key_pointer) != 0)
@@ -168,7 +168,7 @@ unsigned int binary_process_file(HashAPI hash_api, void *ctx, KeyDB key_db, bool
     {
         if (verbose)
             print_bytes_hex(hash_key_pointer, hash_api.out_size, true);
-        key_db_add(key_db, hash_api.out_size, hash_key_pointer, verbose, distinct_keys_count_pointer);
+        key_db_add(key_db, hash_api.out_size, hash_key_pointer, verbose);
         return 1;
     }
 }
@@ -177,9 +177,9 @@ bool safe_fopen(const char *path, int mode, FILE **file_ptr_ptr)
 {
     *file_ptr_ptr = nullptr;
 
-    if (mode == 0)
+    if (mode == HASHING_MODE_BINARY)
         *file_ptr_ptr = fopen(path, "rb");
-    else if (mode == 1)
+    else if (mode == HASHING_MODE_LINES)
         *file_ptr_ptr = fopen(path, "r");
 
     if (*file_ptr_ptr == nullptr)
@@ -193,7 +193,7 @@ bool safe_fopen(const char *path, int mode, FILE **file_ptr_ptr)
 }
 
 // Return valid hashes from file
-unsigned int process_file(HashAPI hash_api, void *ctx, KeyDB key_db, const char *path, bool verbose, unsigned long long *distinct_keys_count_pointer, int mode)
+unsigned int process_file(HashAPI hash_api, void *ctx, KeyDB key_db, const char *path, bool verbose, int mode)
 {
     FILE *file_ptr;
     unsigned int returnval = 0;
@@ -201,16 +201,16 @@ unsigned int process_file(HashAPI hash_api, void *ctx, KeyDB key_db, const char 
     if (!safe_fopen(path, mode, &file_ptr))
         return 0;
 
-    if (mode == 0)
-        returnval = binary_process_file(hash_api, ctx, key_db, verbose, distinct_keys_count_pointer, path, file_ptr);
-    else if (mode == 1)
-        returnval = process_lines(hash_api, ctx, key_db, verbose, distinct_keys_count_pointer, file_ptr);
+    if (mode == HASHING_MODE_BINARY)
+        returnval = binary_process_file(hash_api, ctx, key_db, verbose, path, file_ptr);
+    else if (mode == HASHING_MODE_LINES)
+        returnval = process_lines(hash_api, ctx, key_db, verbose, file_ptr);
 
     fclose(file_ptr);
     return returnval;
 }
 
-void process_files(HashAPI hash_api, KeyDB key_db, const char *filepaths[], unsigned int nfiles, unsigned int *valid_hashes_count_pointer, bool verbose, unsigned long long *distinct_keys_count, int mode)
+void process_files(HashAPI hash_api, KeyDB key_db, const char *filepaths[], unsigned int nfiles, unsigned int *valid_hashes_count_pointer, bool verbose, int mode)
 {
     void *ctx = malloc(hash_api.ctx_size);
     progressbar *progress;
@@ -223,7 +223,7 @@ void process_files(HashAPI hash_api, KeyDB key_db, const char *filepaths[], unsi
             printf("Hashing data from file: %s\n", filepaths[i]);
         else
             progressbar_inc(progress);
-        *valid_hashes_count_pointer += process_file(hash_api, ctx, key_db, filepaths[i], verbose, distinct_keys_count, mode);
+        *valid_hashes_count_pointer += process_file(hash_api, ctx, key_db, filepaths[i], verbose, mode);
     }
     if (!verbose)
         progressbar_finish(progress);
@@ -265,13 +265,12 @@ int main(int argc, char *argv[])
     }
 
     unsigned int valid_hashes_count = 0;
-    unsigned long long distinct_keys_count = 0;
 
-    KeyDB key_db = create_key_db(hash_api.out_size * hash_api.out_size);
+    KeyDB key_db = create_key_db(hash_api, mode, nfiles, verbose);
 
-    process_files(hash_api, key_db, filepaths, nfiles, &valid_hashes_count, verbose, &distinct_keys_count, mode);
+    process_files(hash_api, key_db, filepaths, nfiles, &valid_hashes_count, verbose, mode);
 
-    analyse(key_db, hash_api, distinct_keys_count, valid_hashes_count, nfiles, table, details);
+    analyse(key_db, hash_api, valid_hashes_count, nfiles, table, details);
 
     destroy_key_db(key_db);
 

@@ -6,8 +6,7 @@
 
 #include "hash_api.h"
 
-#define MAX_DETAILS_KEYS 50
-#define DATA_PATH "/tmp/hash-distrib-data.txt"
+#define MAX_DETAILS_KEYS 25
 
 // Use https://github.com/troydhanson/uthash for count of counts hash table, Claude Opus 4.6's recommendation
 typedef struct
@@ -37,26 +36,40 @@ unsigned int get_digit_count(int n) // Inspired by https://www.programiz.com/c-p
 
 // Hash Keys Table
 
-KeyDB create_key_db(unsigned int size)
+KeyDB create_key_db(HashAPI hash_api, int mode, unsigned int nfiles, bool verbose)
 {
-    Node **table = calloc(size, sizeof(Node *));
+    unsigned int size = hash_api.out_size * hash_api.out_size;
+    int method = KEYDB_METHOD_BUCKETS;
+
+    if (mode == HASHING_MODE_BINARY && size >= nfiles)
+    {
+        size = nfiles;
+        method = KEYDB_METHOD_ARRAY;
+        if (verbose)
+            printf("Using unbucket key storing method\n");
+    }
+    else if (verbose)
+        printf("Using bucketed key storing method\n");
+
     KeyDB key_db = {
-        .table = table,
-        .size = size};
-    return key_db; 
+        .table = calloc(size, sizeof(Node *)),
+        .size = size,
+        .method = method,
+        .node_count_ptr = calloc(1, sizeof(unsigned int))};
+    return key_db;
 }
 
-Node *new_node(unsigned char *hash_key_pointer, unsigned long long *distinct_keys_count_pointer)
+Node *new_node(KeyDB key_db, unsigned char *hash_key_pointer)
 {
     Node *new = malloc(sizeof(Node));
     new->key_pointer = hash_key_pointer;
     new->count = 1;
     new->next = nullptr;
-    (*distinct_keys_count_pointer)++;
+    (*key_db.node_count_ptr)++;
     return new;
 }
 
-unsigned int keys_table_index(unsigned char *hash_key_pointer, size_t key_size, unsigned int keys_table_size)
+unsigned int keys_table_index(unsigned char *hash_key_pointer, size_t key_size, KeyDB key_db)
 {
     // uint16_t (two bytes) limit is 65535, which is also the max index for 256 bytes keys_tables, as 256*256 = 65536.
     unsigned char *xor_array = calloc(1, sizeof(uint16_t));
@@ -70,20 +83,21 @@ unsigned int keys_table_index(unsigned char *hash_key_pointer, size_t key_size, 
 
     free(xor_array);
 
-    return val % keys_table_size;
+    return val % key_db.size;
 }
 
-void key_db_add(KeyDB key_db, size_t key_size, unsigned char *hash_key_pointer, bool verbose, unsigned long long *distinct_keys_count_pointer)
+void key_db_buckets_add(KeyDB key_db, size_t key_size, unsigned char *hash_key_pointer, bool verbose)
 {
-    unsigned int index = keys_table_index(hash_key_pointer, key_size, key_db.size);
+    unsigned int index = keys_table_index(hash_key_pointer, key_size, key_db);
+
     if (verbose)
         printf("Using bucket %d/%d\n", index, key_db.size);
 
     if (key_db.table[index] == nullptr)
     {
-        key_db.table[index] = new_node(hash_key_pointer, distinct_keys_count_pointer);
+        key_db.table[index] = new_node(key_db, hash_key_pointer);
         if (verbose)
-            printf("Added as new node at head of bucket\n");
+            printf("Key added as new node at head of bucket\n");
         return;
     }
     Node *current = key_db.table[index];
@@ -94,19 +108,48 @@ void key_db_add(KeyDB key_db, size_t key_size, unsigned char *hash_key_pointer, 
             current->count++;
             free(hash_key_pointer);
             if (verbose)
-                printf("Already found in keys table, count of node++ and memory freed\n");
-            break;
+                printf("Key already found in keys table, count of node++ and memory freed\n");
+            return;
         }
         else if (current->next == nullptr)
         {
-            current->next = new_node(hash_key_pointer, distinct_keys_count_pointer);
+            current->next = new_node(key_db, hash_key_pointer);
             if (verbose)
-                printf("Not found, added as tail of bucket\n");
-            break;
+                printf("Key not found, added as tail of bucket\n");
+            return;
         }
         else
             current = current->next;
     }
+}
+
+void key_db_arr_add(KeyDB key_db, size_t key_size, unsigned char *hash_key_pointer, bool verbose)
+{
+
+    Node *current;
+    for (unsigned long i = 0; i < *(key_db.node_count_ptr); i++)
+    {
+        current = key_db.table[i];
+        if (memcmp(current->key_pointer, hash_key_pointer, key_size) == 0)
+        {
+            current->count++;
+            free(hash_key_pointer);
+            if (verbose)
+                printf("Key already found in keys table, count of node++ and memory freed\n");
+            return;
+        }
+    }
+    if (verbose)
+        printf("Key not found, added to table at index %u\n", *(key_db.node_count_ptr));
+    key_db.table[*(key_db.node_count_ptr)] = new_node(key_db, hash_key_pointer);
+}
+
+void key_db_add(KeyDB key_db, size_t key_size, unsigned char *hash_key_pointer, bool verbose)
+{
+    if (key_db.method == KEYDB_METHOD_BUCKETS)
+        key_db_buckets_add(key_db, key_size, hash_key_pointer, verbose);
+    else
+        key_db_arr_add(key_db, key_size, hash_key_pointer, verbose);
 }
 
 void destroy_key_db(KeyDB key_db)
@@ -123,6 +166,7 @@ void destroy_key_db(KeyDB key_db)
         }
     }
     free(key_db.table);
+    free(key_db.node_count_ptr);
 }
 
 // Count of counts table
@@ -222,7 +266,7 @@ unsigned int count_of_counts_most_digits(CountEntry *count_of_counts)
     return most_digits;
 }
 
-void print_mean(unsigned long long sum, unsigned int valid_hashes_count)
+void print_mean(unsigned long sum, unsigned int valid_hashes_count)
 {
     printf("\nMean of counts: %.3f\n", (float)sum / valid_hashes_count);
     printf("The closer the mean is to 1, the more the keys that were returned only once\n");
@@ -325,9 +369,9 @@ void analysis_details(HashAPI hash_api, KeyDB key_db)
     }
 }
 
-unsigned long long get_counts_sum(KeyDB key_db)
+unsigned long get_counts_sum(KeyDB key_db)
 {
-    unsigned long long counts_sum = 0;
+    unsigned long counts_sum = 0;
     Node *current_node = nullptr;
     for (unsigned long i = 0; i < key_db.size; i++)
     {
@@ -346,8 +390,10 @@ unsigned long long get_counts_sum(KeyDB key_db)
     return counts_sum;
 }
 
-void analyse(KeyDB key_db, HashAPI hash_api, unsigned long long distinct_keys_count, unsigned int valid_hashes_count, unsigned int nfiles, bool table, bool details)
+void analyse(KeyDB key_db, HashAPI hash_api, unsigned int valid_hashes_count, unsigned int nfiles, bool table, bool details)
 {
+    const unsigned int distinct_keys_count = *(key_db.node_count_ptr);
+
     if (valid_hashes_count < 1)
     {
         printf("\nNo valid hashes were returned, no possible analysis.\n");
@@ -359,7 +405,7 @@ void analyse(KeyDB key_db, HashAPI hash_api, unsigned long long distinct_keys_co
     printf(
         "Distribution analysis of '%s' hash function:\n\n"
         "%i hashes in %i files were returned\n"
-        "Out of 2^%zu possible, %lli distinct keys were returned\n",
+        "Out of 2^%zu possible, %u distinct keys were returned\n",
         hash_api.name, valid_hashes_count, nfiles, hash_api.out_size * 8, distinct_keys_count);
 
     if ((valid_hashes_count == 1) && !(details || table))
