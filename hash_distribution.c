@@ -416,23 +416,19 @@ void analyse(KeyDB key_db, HashAPI hash_api, unsigned long valid_hashes_count, u
         "Out of 2^%zu possible, %lu distinct keys were returned\n",
         hash_api.name, valid_hashes_count, nfiles, hash_api.out_size * 8, distinct_keys_count);
 
-    if ((valid_hashes_count == 1) && !(details || table))
+    if (valid_hashes_count == 1 && !details && !table)
     {
-        analysis_details(hash_api, key_db);
-        return;
+        details = true;
     }
-
-    if (distinct_keys_count == 1 && valid_hashes_count > 1)
+    else if (distinct_keys_count == 1 && valid_hashes_count > 1)
     {
         printf("\nWow, you got exactly the same key every time!\n"
                "If you plan to use a hash table for this kind of dataset and hash function,\n"
-               "it's going to be a linked list with some extra steps and edge cases.\n");
+               "all the data is going to fall into the same bucket, which would defeat the purpose of the hash table.\n");
     }
     else if (distinct_keys_count == valid_hashes_count)
     {
-        printf("\nWow, your returned keys were all different!\n"
-               "If you plan to use a hash table for this kind of dataset and hash function,\n"
-               "it's going to be an array with some extra steps and edge cases.\n");
+        printf("\nWow, your returned keys were all different!\n");
     }
     else if (!table && !details)
     {
@@ -448,6 +444,6 @@ void analyse(KeyDB key_db, HashAPI hash_api, unsigned long valid_hashes_count, u
     if (table)
         analysis_table(key_db);
 
-    if (table || details)
-        print_mean(get_counts_sum(key_db), valid_hashes_count);
+    if ((table || details) && distinct_keys_count != valid_hashes_count)
+        print_mean(get_counts_sum(key_db), distinct_keys_count);
 }
