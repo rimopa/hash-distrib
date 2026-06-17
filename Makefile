@@ -1,4 +1,4 @@
-CC       := gcc
+CC       := clang
 CFLAGS   := -Wall -Wextra -Werror -std=c23
 CPPFLAGS := -Iprogressbar/include/progressbar
 LDFLAGS  := -lncurses
