@@ -125,8 +125,8 @@ void key_db_buckets_add(KeyDB key_db, size_t key_size, unsigned char *hash_key_p
 
 void key_db_arr_add(KeyDB key_db, size_t key_size, unsigned char *hash_key_pointer, bool verbose)
 {
+    Node *current = nullptr;
 
-    Node *current;
     for (unsigned long i = 0; i < *(key_db.node_count_ptr); i++)
     {
         current = key_db.table[i];
@@ -139,9 +139,11 @@ void key_db_arr_add(KeyDB key_db, size_t key_size, unsigned char *hash_key_point
             return;
         }
     }
+    unsigned long index = *(key_db.node_count_ptr);
+
+    key_db.table[index] = new_node(key_db, hash_key_pointer);
     if (verbose)
-        printf("Key not found, added to table at index %lu\n", *(key_db.node_count_ptr));
-    key_db.table[*(key_db.node_count_ptr)] = new_node(key_db, hash_key_pointer);
+        printf("Key not found, added to table at index %lu\n", index);
 }
 
 void key_db_add(KeyDB key_db, size_t key_size, unsigned char *hash_key_pointer, bool verbose)
