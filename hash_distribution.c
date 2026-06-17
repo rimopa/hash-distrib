@@ -443,5 +443,5 @@ void analyse(KeyDB key_db, HashAPI hash_api, unsigned long valid_hashes_count, u
         analysis_table(key_db);
 
     if ((table || details) && distinct_keys_count != valid_hashes_count)
-        print_mean(get_counts_sum(key_db), valid_hashes_count);
+        print_mean(get_counts_sum(key_db), distinct_keys_count);
 }
