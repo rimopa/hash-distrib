@@ -23,13 +23,13 @@ unsigned int maxuint(unsigned int a, unsigned int b)
     return b;
 }
 
-unsigned int get_digit_count(int n) // Inspired by https://www.programiz.com/c-programming/examples/digits-count
+unsigned int get_digit_count(long long n) // Inspired by https://www.programiz.com/c-programming/examples/digits-count
 {
     unsigned int c = 0;
     do
     {
         n /= 10;
-        ++c;
+        c++;
     } while (n != 0);
     return c;
 }
@@ -55,7 +55,7 @@ KeyDB create_key_db(HashAPI hash_api, int mode, unsigned int nfiles, bool verbos
         .table = calloc(size, sizeof(Node *)),
         .size = size,
         .method = method,
-        .node_count_ptr = calloc(1, sizeof(unsigned int))};
+        .node_count_ptr = calloc(1, sizeof(unsigned long))};
     return key_db;
 }
 
@@ -140,7 +140,7 @@ void key_db_arr_add(KeyDB key_db, size_t key_size, unsigned char *hash_key_point
         }
     }
     if (verbose)
-        printf("Key not found, added to table at index %u\n", *(key_db.node_count_ptr));
+        printf("Key not found, added to table at index %lu\n", *(key_db.node_count_ptr));
     key_db.table[*(key_db.node_count_ptr)] = new_node(key_db, hash_key_pointer);
 }
 
@@ -179,15 +179,20 @@ int sort_by_id(const CountEntry *a, const CountEntry *b)
         return 1;
     return 0;
 }
+
 int sort_by_num_values(const CountEntry *a, const CountEntry *b)
 {
-    return (a->num_values - b->num_values);
+    if (a->num_values < b->num_values)
+        return -1;
+    if (a->num_values > b->num_values)
+        return 1;
+    return 0;
 }
 
-void count_of_counts_add(CountEntry **count_of_counts, unsigned long long key)
+void count_of_counts_add(CountEntry **count_of_counts, unsigned long key)
 {
     CountEntry *s;
-    HASH_FIND_INT(*count_of_counts, &key, s);
+    HASH_FIND(hh, *count_of_counts, &key, sizeof(s->id), s);
     if (s != nullptr)
     {
         s->num_values++;
@@ -195,10 +200,10 @@ void count_of_counts_add(CountEntry **count_of_counts, unsigned long long key)
     }
     else
     {
-        s = malloc(sizeof(CountEntry));
+        s = malloc(sizeof *s);
         s->id = key;
         s->num_values = 1;
-        HASH_ADD_INT(*count_of_counts, id, s);
+        HASH_ADD(hh, *count_of_counts, id, sizeof s->id, s);
     }
 }
 
@@ -266,7 +271,7 @@ unsigned int count_of_counts_most_digits(CountEntry *count_of_counts)
     return most_digits;
 }
 
-void print_mean(unsigned long sum, unsigned int valid_hashes_count)
+void print_mean(unsigned long sum, unsigned long valid_hashes_count)
 {
     printf("\nMean of counts: %.3f\n", (float)sum / valid_hashes_count);
     printf("The closer the mean is to 1, the more the keys that were returned only once\n");
@@ -292,10 +297,10 @@ void analysis_table(KeyDB key_db)
         unsigned int nv_digits = get_digit_count(count_entry->num_values);
         unsigned int id_digits = get_digit_count(count_entry->id);
 
-        printf("|%li", count_entry->num_values);
+        printf("|%lu", count_entry->num_values);
         for (unsigned int i = 0; i < most_digits - nv_digits; i++)
             printf(" ");
-        printf("|%li", count_entry->id);
+        printf("|%lu", count_entry->id);
         for (unsigned int i = 0; i < most_digits - id_digits; i++)
             printf(" ");
         printf("|\n");
@@ -331,10 +336,11 @@ int write_to_file(KeyDB key_db, char *path, size_t key_size)
             if (elements_written != 1)
             {
                 fprintf(stderr, "Error writing key to %s", path);
+                fclose(file_pointer);
                 return 2;
             }
 
-            fprintf(file_pointer, " %llu", current_node->count);
+            fprintf(file_pointer, " %lu", current_node->count);
 
             if (current_node->next == nullptr)
                 break;
@@ -360,7 +366,7 @@ void analysis_details(HashAPI hash_api, KeyDB key_db)
         {
             printf("The key ");
             print_bytes_hex(current_node->key_pointer, hash_api.out_size, false);
-            printf(" was returned %llu times\n", current_node->count);
+            printf(" was returned %lu times\n", current_node->count);
 
             if (current_node->next == nullptr)
                 break;
@@ -390,9 +396,9 @@ unsigned long get_counts_sum(KeyDB key_db)
     return counts_sum;
 }
 
-void analyse(KeyDB key_db, HashAPI hash_api, unsigned int valid_hashes_count, unsigned int nfiles, bool table, bool details)
+void analyse(KeyDB key_db, HashAPI hash_api, unsigned long valid_hashes_count, unsigned int nfiles, bool table, bool details)
 {
-    const unsigned int distinct_keys_count = *(key_db.node_count_ptr);
+    const unsigned long distinct_keys_count = *(key_db.node_count_ptr);
 
     if (valid_hashes_count < 1)
     {
@@ -404,8 +410,8 @@ void analyse(KeyDB key_db, HashAPI hash_api, unsigned int valid_hashes_count, un
     printbar(79);
     printf(
         "Distribution analysis of '%s' hash function:\n\n"
-        "%i hashes in %i files were returned\n"
-        "Out of 2^%zu possible, %u distinct keys were returned\n",
+        "%lu hashes in %u files were returned\n"
+        "Out of 2^%zu possible, %lu distinct keys were returned\n",
         hash_api.name, valid_hashes_count, nfiles, hash_api.out_size * 8, distinct_keys_count);
 
     if ((valid_hashes_count == 1) && !(details || table))

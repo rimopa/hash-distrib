@@ -17,7 +17,7 @@
 typedef struct Node
 {
     unsigned char *key_pointer;
-    unsigned long long count;
+    unsigned long count;
     struct Node *next;
 } Node;
 
@@ -29,7 +29,7 @@ typedef struct
     Node **table;
     const unsigned int size;
     const int method; // 0 = hash table with buckets, 1 = array
-    unsigned int *node_count_ptr;
+    unsigned long *node_count_ptr;
 } KeyDB;
 
 KeyDB create_key_db(HashAPI hash_api, int mode, unsigned int nfiles, bool verbose);
@@ -38,6 +38,6 @@ void destroy_key_db(KeyDB key_db);
 
 // Analysis
 void print_bytes_hex(unsigned char *pointer, size_t bytes, bool description);
-void analyse(KeyDB key_db, HashAPI hash_api, unsigned int valid_hashes_count, unsigned int nfiles, bool table, bool details);
+void analyse(KeyDB key_db, HashAPI hash_api, unsigned long valid_hashes_count, unsigned int nfiles, bool table, bool details);
 
 #endif

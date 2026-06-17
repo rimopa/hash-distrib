@@ -210,7 +210,7 @@ unsigned int process_file(HashAPI hash_api, void *ctx, KeyDB key_db, const char 
     return returnval;
 }
 
-void process_files(HashAPI hash_api, KeyDB key_db, const char *filepaths[], unsigned int nfiles, unsigned int *valid_hashes_count_pointer, bool verbose, int mode)
+void process_files(HashAPI hash_api, KeyDB key_db, const char *filepaths[], unsigned int nfiles, unsigned long *valid_hashes_count_pointer, bool verbose, int mode)
 {
     void *ctx = malloc(hash_api.ctx_size);
     progressbar *progress;
@@ -250,6 +250,13 @@ int main(int argc, char *argv[])
 
     read_args(argc, argv, &hashpath, &nfiles, &mode, &verbose, &table, &details);
 
+    if (nfiles < 1)
+    {
+        usage(argv[0]);
+        printf("No files to hash provided\n");
+        return 6;
+    }
+
     const char *filepaths[nfiles];
 
     read_filepaths(argv, nfiles, filepaths);
@@ -264,7 +271,7 @@ int main(int argc, char *argv[])
         return 5;
     }
 
-    unsigned int valid_hashes_count = 0;
+    unsigned long valid_hashes_count = 0;
 
     KeyDB key_db = create_key_db(hash_api, mode, nfiles, verbose);
 
