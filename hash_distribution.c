@@ -37,9 +37,13 @@ unsigned int get_digit_count(int n) // Inspired by https://www.programiz.com/c-p
 
 // Hash Keys Table
 
-Node **create_keys_table(unsigned int keys_table_size)
+KeyDB create_key_db(unsigned int size)
 {
-    return calloc(keys_table_size, sizeof(Node *));
+    Node **keys_table = calloc(size, sizeof(Node *));
+    KeyDB key_db = {
+        .keys_table = keys_table,
+        .size = size};
+    return key_db; 
 }
 
 Node *new_node(unsigned char *hash_key_pointer, unsigned long long *distinct_keys_count_pointer)
@@ -69,20 +73,20 @@ unsigned int keys_table_index(unsigned char *hash_key_pointer, size_t key_size, 
     return val % keys_table_size;
 }
 
-void keys_table_add(Node **keys_table, unsigned int keys_table_size, size_t key_size, unsigned char *hash_key_pointer, bool verbose, unsigned long long *distinct_keys_count_pointer)
+void key_db_add(KeyDB key_db, size_t key_size, unsigned char *hash_key_pointer, bool verbose, unsigned long long *distinct_keys_count_pointer)
 {
-    unsigned int index = keys_table_index(hash_key_pointer, key_size, keys_table_size);
+    unsigned int index = keys_table_index(hash_key_pointer, key_size, key_db.size);
     if (verbose)
-        printf("Using bucket %d/%d\n", index, keys_table_size);
+        printf("Using bucket %d/%d\n", index, key_db.size);
 
-    if (keys_table[index] == nullptr)
+    if (key_db.keys_table[index] == nullptr)
     {
-        keys_table[index] = new_node(hash_key_pointer, distinct_keys_count_pointer);
+        key_db.keys_table[index] = new_node(hash_key_pointer, distinct_keys_count_pointer);
         if (verbose)
             printf("Added as new node at head of bucket\n");
         return;
     }
-    Node *current = keys_table[index];
+    Node *current = key_db.keys_table[index];
     while (true)
     {
         if (memcmp(current->key_pointer, hash_key_pointer, key_size) == 0)
@@ -105,11 +109,11 @@ void keys_table_add(Node **keys_table, unsigned int keys_table_size, size_t key_
     }
 }
 
-void destroy_keys_table(Node **keys_table, unsigned int keys_table_size)
+void destroy_key_db(KeyDB key_db)
 {
-    for (unsigned int i = 0; i < keys_table_size; i++)
+    for (unsigned int i = 0; i < key_db.size; i++)
     {
-        Node *cur = keys_table[i];
+        Node *cur = key_db.keys_table[i];
         while (cur)
         {
             Node *next = cur->next;
@@ -118,7 +122,7 @@ void destroy_keys_table(Node **keys_table, unsigned int keys_table_size)
             cur = next;
         }
     }
-    free(keys_table);
+    free(key_db.keys_table);
 }
 
 // Count of counts table
@@ -154,15 +158,15 @@ void count_of_counts_add(CountEntry **count_of_counts, unsigned long long key)
     }
 }
 
-CountEntry *create_count_of_counts(Node **keys_table, unsigned int keys_table_size)
+CountEntry *create_count_of_counts(KeyDB key_db)
 {
     CountEntry *count_of_counts = nullptr; // empty map
-    for (unsigned int i = 0; i < keys_table_size; i++)
+    for (unsigned int i = 0; i < key_db.size; i++)
     {
-        if (keys_table[i] == nullptr)
+        if (key_db.keys_table[i] == nullptr)
             continue;
 
-        Node *n = keys_table[i];
+        Node *n = key_db.keys_table[i];
 
         while (true)
         {
@@ -225,9 +229,9 @@ void print_mean(unsigned long long sum, unsigned int valid_hashes_count)
     printf("The bigger it is, the more repeated the keys your hash function returned\n");
 }
 
-void analysis_table(Node **keys_table, unsigned int keys_table_size)
+void analysis_table(KeyDB key_db)
 {
-    CountEntry *count_of_counts = create_count_of_counts(keys_table, keys_table_size);
+    CountEntry *count_of_counts = create_count_of_counts(key_db);
 
     HASH_SORT(count_of_counts, sort_by_id);
 
@@ -257,7 +261,7 @@ void analysis_table(Node **keys_table, unsigned int keys_table_size)
     destroy_count_of_counts(count_of_counts);
 }
 
-int write_to_file(Node **keys_table, unsigned int keys_table_size, char *path, size_t key_size)
+int write_to_file(KeyDB key_db, char *path, size_t key_size)
 {
     FILE *file_pointer;
     file_pointer = fopen(path, "w");
@@ -272,11 +276,11 @@ int write_to_file(Node **keys_table, unsigned int keys_table_size, char *path, s
     Node *current_node = nullptr;
     size_t elements_written;
 
-    for (unsigned long i = 0; i < keys_table_size; i++)
+    for (unsigned long i = 0; i < key_db.size; i++)
     {
-        if (keys_table[i] == nullptr)
+        if (key_db.keys_table[i] == nullptr)
             continue;
-        current_node = keys_table[i];
+        current_node = key_db.keys_table[i];
         while (true)
         {
             elements_written = fwrite(current_node->key_pointer, key_size, 1, file_pointer);
@@ -299,15 +303,15 @@ int write_to_file(Node **keys_table, unsigned int keys_table_size, char *path, s
     return 0;
 }
 
-void analysis_details(HashAPI hash_api, Node **keys_table, unsigned int keys_table_size)
+void analysis_details(HashAPI hash_api, KeyDB key_db)
 {
     printf("\n");
     Node *current_node = nullptr;
-    for (unsigned long i = 0; i < keys_table_size; i++)
+    for (unsigned long i = 0; i < key_db.size; i++)
     {
-        if (keys_table[i] == nullptr)
+        if (key_db.keys_table[i] == nullptr)
             continue;
-        current_node = keys_table[i];
+        current_node = key_db.keys_table[i];
         while (true)
         {
             printf("The key ");
@@ -321,15 +325,15 @@ void analysis_details(HashAPI hash_api, Node **keys_table, unsigned int keys_tab
     }
 }
 
-unsigned long long get_counts_sum(Node **keys_table, unsigned int keys_table_size)
+unsigned long long get_counts_sum(KeyDB key_db)
 {
     unsigned long long counts_sum = 0;
     Node *current_node = nullptr;
-    for (unsigned long i = 0; i < keys_table_size; i++)
+    for (unsigned long i = 0; i < key_db.size; i++)
     {
-        if (keys_table[i] == nullptr)
+        if (key_db.keys_table[i] == nullptr)
             continue;
-        current_node = keys_table[i];
+        current_node = key_db.keys_table[i];
         while (true)
         {
 
@@ -342,7 +346,7 @@ unsigned long long get_counts_sum(Node **keys_table, unsigned int keys_table_siz
     return counts_sum;
 }
 
-void analyse(Node **keys_table, unsigned int keys_table_size, HashAPI hash_api, unsigned long long distinct_keys_count, unsigned int valid_hashes_count, unsigned int nfiles, bool table, bool details)
+void analyse(KeyDB key_db, HashAPI hash_api, unsigned long long distinct_keys_count, unsigned int valid_hashes_count, unsigned int nfiles, bool table, bool details)
 {
     if (valid_hashes_count < 1)
     {
@@ -360,7 +364,7 @@ void analyse(Node **keys_table, unsigned int keys_table_size, HashAPI hash_api, 
 
     if ((valid_hashes_count == 1) && !(details || table))
     {
-        analysis_details(hash_api, keys_table, keys_table_size);
+        analysis_details(hash_api, key_db);
         return;
     }
 
@@ -385,11 +389,11 @@ void analyse(Node **keys_table, unsigned int keys_table_size, HashAPI hash_api, 
     }
 
     if (details)
-        analysis_details(hash_api, keys_table, keys_table_size);
+        analysis_details(hash_api, key_db);
 
     if (table)
-        analysis_table(keys_table, keys_table_size);
+        analysis_table(key_db);
 
     if (table || details)
-        print_mean(get_counts_sum(keys_table, keys_table_size), valid_hashes_count);
+        print_mean(get_counts_sum(key_db), valid_hashes_count);
 }

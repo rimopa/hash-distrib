@@ -44,3 +44,4 @@ debug: $(HASHLIB) $(NAMEDTARGET)
 
 clean:
 	rm -f $(TARGET) $(NAMEDTARGET) $(HASHLIB) $(PROGRESSBAR_OBJ)
+	clear
