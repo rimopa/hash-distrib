@@ -14,7 +14,7 @@
 
 #define HASH_API_FUNC_NAME "hash_api"
 #define OUT_SIZE_LOWER_BOUND 1
-#define OUT_SIZE_UPPER_BOUND 256
+#define OUT_SIZE_UPPER_BOUND 255
 
 static void
 usage(const char *prog)
