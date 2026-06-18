@@ -71,6 +71,9 @@ Node *new_node(KeyDB key_db, unsigned char *hash_key_pointer)
 
 unsigned int keys_table_index(unsigned char *hash_key_pointer, size_t key_size, KeyDB key_db)
 {
+    if (key_size == 1)
+        return 0;
+
     // uint16_t (two bytes) limit is 65535, which is also the max index for 256 bytes keys_tables, as 256*256 = 65536.
     unsigned char *xor_array = calloc(1, sizeof(uint16_t));
     for (unsigned int i = 0; i < key_size; i++)
