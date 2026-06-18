@@ -13,7 +13,7 @@
 #include "hash_api.h"
 
 #define HASH_API_FUNC_NAME "hash_api"
-#define OUT_SIZE_LOWER_BOUND 2
+#define OUT_SIZE_LOWER_BOUND 1
 #define OUT_SIZE_UPPER_BOUND 256
 
 static void
@@ -232,7 +232,7 @@ void process_files(HashAPI hash_api, KeyDB key_db, const char *filepaths[], unsi
 
 bool is_valid_out_size(size_t out_size)
 {
-    if (out_size < 2 || out_size > 256)
+    if (out_size < OUT_SIZE_LOWER_BOUND || out_size > OUT_SIZE_UPPER_BOUND)
     {
         printf("Invalid out_size: must be %d <= out_size <=%d, got %zu.\n", OUT_SIZE_LOWER_BOUND, OUT_SIZE_UPPER_BOUND, out_size);
         return false;
