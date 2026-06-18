@@ -239,6 +239,16 @@ bool count_of_counts_add(CountEntry **count_of_counts, unsigned long key)
     }
     return true;
 }
+void destroy_count_of_counts(CountEntry *count_of_counts)
+{
+    CountEntry *count_entry, *tmp; // Variables for iteraton
+
+    HASH_ITER(hh, count_of_counts, count_entry, tmp)
+    {
+        HASH_DEL(count_of_counts, count_entry);
+        free(count_entry);
+    }
+}
 
 CountEntry *create_count_of_counts(KeyDB key_db)
 {
@@ -264,17 +274,6 @@ CountEntry *create_count_of_counts(KeyDB key_db)
         }
     }
     return count_of_counts;
-}
-
-void destroy_count_of_counts(CountEntry *count_of_counts)
-{
-    CountEntry *count_entry, *tmp; // Variables for iteraton
-
-    HASH_ITER(hh, count_of_counts, count_entry, tmp)
-    {
-        HASH_DEL(count_of_counts, count_entry);
-        free(count_entry);
-    }
 }
 
 // Analysis
