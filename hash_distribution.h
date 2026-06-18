@@ -33,7 +33,7 @@ typedef struct
 } KeyDB;
 
 KeyDB create_key_db(HashAPI hash_api, int mode, unsigned int nfiles, bool verbose);
-void key_db_add(KeyDB key_db, size_t key_size, unsigned char *hash_key_pointer, bool verbose);
+bool key_db_add(KeyDB key_db, size_t key_size, unsigned char *hash_key_pointer, bool verbose);
 void destroy_key_db(KeyDB key_db);
 
 // Analysis
