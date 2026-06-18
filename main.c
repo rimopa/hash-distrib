@@ -116,7 +116,7 @@ void read_args(int argc, char *argv[], char **hashpath, unsigned int *nfiles, in
         *mode_pointer = choose_mode(mode_string);
         if (*mode_pointer < 0)
         {
-            fprintf(stderr, "Unrecognized mode %s\n", mode_string);
+            fprintf(stderr, "Unrecognized mode %s.\n", mode_string);
             usage(argv[0]);
             exit(6);
         }
@@ -207,7 +207,7 @@ bool safe_fopen(const char *path, int mode, FILE **file_ptr_ptr)
     if (*file_ptr_ptr == nullptr)
     {
         perror(path);
-        fprintf(stderr, "Could not open %s\nSkipping…\n", path);
+        fprintf(stderr, "Could not open %s\nSkipping.\n", path);
         return false;
     }
     else
@@ -251,7 +251,7 @@ int process_files(HashAPI hash_api, KeyDB key_db, const char *filepaths[], unsig
     for (unsigned int i = 0; i < nfiles; i++)
     {
         if (verbose)
-            printf("Hashing data from file: %s\n", filepaths[i]);
+            printf("Hashing data from file: %s.\n", filepaths[i]);
         else
             progressbar_inc(progress);
 
@@ -303,7 +303,7 @@ int main(int argc, char *argv[])
     if (nfiles < 1)
     {
         usage(argv[0]);
-        printf("No files to hash provided\n");
+        printf("No files to hash provided.\n");
         return 6;
     }
 

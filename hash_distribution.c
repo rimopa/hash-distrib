@@ -46,10 +46,10 @@ KeyDB create_key_db(HashAPI hash_api, int mode, unsigned int nfiles, bool verbos
         size = nfiles;
         method = KEYDB_METHOD_ARRAY;
         if (verbose)
-            printf("Using unbucket key storing method\n");
+            printf("Using unbucket key storing method.\n");
     }
     else if (verbose)
-        printf("Using bucketed key storing method\n");
+        printf("Using bucketed key storing method.\n");
 
     KeyDB key_db = {
         .table = calloc(size, sizeof(Node *)),
@@ -100,7 +100,7 @@ bool key_db_buckets_add(KeyDB key_db, size_t key_size, unsigned char *hash_key_p
     unsigned int index = keys_table_index(hash_key_pointer, key_size, key_db);
 
     if (verbose)
-        printf("Using bucket %d/%d\n", index, key_db.size);
+        printf("Using bucket %d/%d.\n", index, key_db.size);
 
     if (key_db.table[index] == nullptr)
     {
@@ -108,7 +108,7 @@ bool key_db_buckets_add(KeyDB key_db, size_t key_size, unsigned char *hash_key_p
         if (key_db.table[index] == nullptr)
             return false;
         if (verbose)
-            printf("Key added as new node at head of bucket\n");
+            printf("Key added as new node at head of bucket.\n");
         return true;
     }
     Node *current = key_db.table[index];
@@ -119,7 +119,7 @@ bool key_db_buckets_add(KeyDB key_db, size_t key_size, unsigned char *hash_key_p
             current->count++;
             free(hash_key_pointer);
             if (verbose)
-                printf("Key already found in keys table, count of node++ and memory freed\n");
+                printf("Key already found in keys table, count of node++ and memory freed.\n");
             return true;
         }
         else if (current->next == nullptr)
@@ -128,7 +128,7 @@ bool key_db_buckets_add(KeyDB key_db, size_t key_size, unsigned char *hash_key_p
             if (current->next == nullptr)
                 return false;
             if (verbose)
-                printf("Key not found, added as tail of bucket\n");
+                printf("Key not found, added as tail of bucket.\n");
             return true;
         }
         else
@@ -150,7 +150,7 @@ bool key_db_arr_add(KeyDB key_db, size_t key_size, unsigned char *hash_key_point
             current->count++;
             free(hash_key_pointer);
             if (verbose)
-                printf("Key already found in keys table, count of node++ and memory freed\n");
+                printf("Key already found in keys table, count of node++ and memory freed.\n");
             return true;
         }
     }
@@ -160,7 +160,7 @@ bool key_db_arr_add(KeyDB key_db, size_t key_size, unsigned char *hash_key_point
     if (key_db.table[index] == nullptr)
         return false;
     if (verbose)
-        printf("Key not found, added to table at index %lu\n", index);
+        printf("Key not found, added to table at index %lu.\n", index);
     return true;
 }
 
@@ -286,7 +286,7 @@ void print_bytes_hex(unsigned char *pointer, size_t bytes, bool description)
     for (size_t i = 0; i < bytes; i++)
         printf("%02X", pointer[i]);
     if (description)
-        printf("\n");
+        printf(".\n");
 }
 
 void printbar(unsigned int width)
@@ -311,8 +311,8 @@ unsigned int count_of_counts_most_digits(CountEntry *count_of_counts)
 void print_mean(unsigned long sum, unsigned long valid_hashes_count)
 {
     printf("\nMean of counts: %.3f\n", (float)sum / valid_hashes_count);
-    printf("The closer the mean is to 1, the more the keys that were returned only once\n");
-    printf("The bigger it is, the more repeated the keys your hash function returned\n");
+    printf("The closer the mean is to 1, the more the keys that were returned only once.\n");
+    printf("The bigger it is, the more repeated the keys your hash function returned.\n");
 }
 
 void analysis_table(KeyDB key_db)
@@ -361,7 +361,7 @@ int write_to_file(KeyDB key_db, char *path, size_t key_size)
     if (file_pointer == nullptr)
     {
         perror(path);
-        fprintf(stderr, "Could not open %s\n", path);
+        fprintf(stderr, "Could not open %s.\n", path);
         return 1;
     }
 
@@ -378,7 +378,7 @@ int write_to_file(KeyDB key_db, char *path, size_t key_size)
             elements_written = fwrite(current_node->key_pointer, key_size, 1, file_pointer);
             if (elements_written != 1)
             {
-                fprintf(stderr, "Error writing key to %s", path);
+                fprintf(stderr, "Error writing key to %s.\n", path);
                 fclose(file_pointer);
                 return 2;
             }
@@ -409,7 +409,7 @@ void analysis_details(HashAPI hash_api, KeyDB key_db)
         {
             printf("The key ");
             print_bytes_hex(current_node->key_pointer, hash_api.out_size, false);
-            printf(" was returned %lu times\n", current_node->count);
+            printf(" was returned %lu times.\n", current_node->count);
 
             if (current_node->next == nullptr)
                 break;
@@ -453,8 +453,8 @@ void analyse(KeyDB key_db, HashAPI hash_api, unsigned long valid_hashes_count, u
     printbar(79);
     printf(
         "Distribution analysis of '%s' hash function:\n\n"
-        "%lu hashes in %u files were returned\n"
-        "Out of 2^%zu possible, %lu distinct keys were returned\n",
+        "%lu hashes in %u files were returned.\n"
+        "Out of 2^%zu possible, %lu distinct keys were returned.\n",
         hash_api.name, valid_hashes_count, nfiles, hash_api.out_size * 8, distinct_keys_count);
 
     if (valid_hashes_count == 1 && !details && !table)
