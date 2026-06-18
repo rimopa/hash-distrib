@@ -62,6 +62,13 @@ KeyDB create_key_db(HashAPI hash_api, int mode, unsigned int nfiles, bool verbos
 Node *new_node(KeyDB key_db, unsigned char *hash_key_pointer)
 {
     Node *new = malloc(sizeof(Node));
+    if (new == nullptr)
+    {
+        fprintf(stderr, "Failed to allocate memory for new node.\n");
+        free(hash_key_pointer);
+        return nullptr;
+    }
+
     new->key_pointer = hash_key_pointer;
     new->count = 1;
     new->next = nullptr;
@@ -74,8 +81,9 @@ unsigned int keys_table_index(unsigned char *hash_key_pointer, size_t key_size, 
     if (key_size == 1)
         return 0;
 
-    // uint16_t (two bytes) limit is 65535, which is also the max index for 256 bytes keys_tables, as 256*256 = 65536.
-    unsigned char *xor_array = calloc(1, sizeof(uint16_t));
+    // uint16_t (two bytes) limit is 65535, which is also the max index for 256 bytes keys_tables, as 256*256 = 65536, so it could overflow and be set to 0.
+    uint8_t xor_array[2] = {0, 0};
+
     for (unsigned int i = 0; i < key_size; i++)
     {
         xor_array[i % 2] ^= hash_key_pointer[i];
@@ -84,12 +92,10 @@ unsigned int keys_table_index(unsigned char *hash_key_pointer, size_t key_size, 
     uint16_t val;
     memcpy(&val, xor_array, sizeof(uint16_t));
 
-    free(xor_array);
-
     return val % key_db.size;
 }
 
-void key_db_buckets_add(KeyDB key_db, size_t key_size, unsigned char *hash_key_pointer, bool verbose)
+bool key_db_buckets_add(KeyDB key_db, size_t key_size, unsigned char *hash_key_pointer, bool verbose)
 {
     unsigned int index = keys_table_index(hash_key_pointer, key_size, key_db);
 
@@ -99,9 +105,11 @@ void key_db_buckets_add(KeyDB key_db, size_t key_size, unsigned char *hash_key_p
     if (key_db.table[index] == nullptr)
     {
         key_db.table[index] = new_node(key_db, hash_key_pointer);
+        if (key_db.table[index] == nullptr)
+            return false;
         if (verbose)
             printf("Key added as new node at head of bucket\n");
-        return;
+        return true;
     }
     Node *current = key_db.table[index];
     while (true)
@@ -112,66 +120,78 @@ void key_db_buckets_add(KeyDB key_db, size_t key_size, unsigned char *hash_key_p
             free(hash_key_pointer);
             if (verbose)
                 printf("Key already found in keys table, count of node++ and memory freed\n");
-            return;
+            return true;
         }
         else if (current->next == nullptr)
         {
             current->next = new_node(key_db, hash_key_pointer);
+            if (current->next == nullptr)
+                return false;
             if (verbose)
                 printf("Key not found, added as tail of bucket\n");
-            return;
+            return true;
         }
         else
             current = current->next;
     }
+    return true;
 }
 
-void key_db_arr_add(KeyDB key_db, size_t key_size, unsigned char *hash_key_pointer, bool verbose)
+bool key_db_arr_add(KeyDB key_db, size_t key_size, unsigned char *hash_key_pointer, bool verbose)
 {
     Node *current = nullptr;
 
     for (unsigned long i = 0; i < *(key_db.node_count_ptr); i++)
     {
         current = key_db.table[i];
+
         if (memcmp(current->key_pointer, hash_key_pointer, key_size) == 0)
         {
             current->count++;
             free(hash_key_pointer);
             if (verbose)
                 printf("Key already found in keys table, count of node++ and memory freed\n");
-            return;
+            return true;
         }
     }
     unsigned long index = *(key_db.node_count_ptr);
 
     key_db.table[index] = new_node(key_db, hash_key_pointer);
+    if (key_db.table[index] == nullptr)
+        return false;
     if (verbose)
         printf("Key not found, added to table at index %lu\n", index);
+    return true;
 }
 
-void key_db_add(KeyDB key_db, size_t key_size, unsigned char *hash_key_pointer, bool verbose)
+bool key_db_add(KeyDB key_db, size_t key_size, unsigned char *hash_key_pointer, bool verbose)
 {
     if (key_db.method == KEYDB_METHOD_BUCKETS)
-        key_db_buckets_add(key_db, key_size, hash_key_pointer, verbose);
+        return key_db_buckets_add(key_db, key_size, hash_key_pointer, verbose);
     else
-        key_db_arr_add(key_db, key_size, hash_key_pointer, verbose);
+        return key_db_arr_add(key_db, key_size, hash_key_pointer, verbose);
 }
 
 void destroy_key_db(KeyDB key_db)
 {
-    for (unsigned int i = 0; i < key_db.size; i++)
+    if (key_db.table != nullptr)
     {
-        Node *cur = key_db.table[i];
-        while (cur)
+        for (unsigned int i = 0; i < key_db.size; i++)
         {
-            Node *next = cur->next;
-            free(cur->key_pointer);
-            free(cur);
-            cur = next;
+            Node *cur = key_db.table[i];
+            while (cur)
+            {
+                Node *next = cur->next;
+                free(cur->key_pointer);
+                free(cur);
+                cur = next;
+            }
         }
+        free(key_db.table);
     }
-    free(key_db.table);
-    free(key_db.node_count_ptr);
+
+    if (key_db.node_count_ptr != nullptr)
+        free(key_db.node_count_ptr);
 }
 
 // Count of counts table
@@ -194,22 +214,30 @@ int sort_by_num_values(const CountEntry *a, const CountEntry *b)
     return 0;
 }
 
-void count_of_counts_add(CountEntry **count_of_counts, unsigned long key)
+bool count_of_counts_add(CountEntry **count_of_counts, unsigned long key)
 {
     CountEntry *s;
     HASH_FIND(hh, *count_of_counts, &key, sizeof(s->id), s);
     if (s != nullptr)
     {
         s->num_values++;
-        return;
+        return true;
     }
     else
     {
         s = malloc(sizeof *s);
+
+        if (s == nullptr)
+        {
+            fprintf(stderr, "Failed to allocate memory for new node for count of counts table.\n");
+            return false;
+        }
+
         s->id = key;
         s->num_values = 1;
         HASH_ADD(hh, *count_of_counts, id, sizeof s->id, s);
     }
+    return true;
 }
 
 CountEntry *create_count_of_counts(KeyDB key_db)
@@ -224,7 +252,12 @@ CountEntry *create_count_of_counts(KeyDB key_db)
 
         while (true)
         {
-            count_of_counts_add(&count_of_counts, n->count);
+            if (!count_of_counts_add(&count_of_counts, n->count))
+            {
+                destroy_count_of_counts(count_of_counts);
+                return nullptr;
+            }
+
             if (n->next == nullptr)
                 break;
             n = n->next;
@@ -286,6 +319,12 @@ void print_mean(unsigned long sum, unsigned long valid_hashes_count)
 void analysis_table(KeyDB key_db)
 {
     CountEntry *count_of_counts = create_count_of_counts(key_db);
+
+    if (count_of_counts == nullptr)
+    {
+        printf("Cannot display table without valid count of counts. Cancelling operation.\n");
+        return;
+    }
 
     HASH_SORT(count_of_counts, sort_by_id);
 

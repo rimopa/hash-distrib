@@ -133,7 +133,7 @@ void read_filepaths(char *argv[], int nfiles, const char *filepaths[])
     }
 }
 
-unsigned int process_lines(HashAPI hash_api, void *ctx, KeyDB key_db, bool verbose, FILE *file_pointer)
+int process_lines(HashAPI hash_api, void *ctx, KeyDB key_db, bool verbose, FILE *file_pointer)
 {
     unsigned int local_hash_count = 0;
     unsigned char *hash_key_pointer;
@@ -145,31 +145,53 @@ unsigned int process_lines(HashAPI hash_api, void *ctx, KeyDB key_db, bool verbo
         line[strcspn(line, "\n")] = '\0';
 
         hash_key_pointer = malloc(hash_api.out_size);
+
+        if (hash_key_pointer == nullptr)
+        {
+            fprintf(stderr, "Failed to allocate bytes for hash key for a line.\n");
+            free(line);
+            return -1;
+        }
         string_hash(hash_api, ctx, hash_key_pointer, line);
         if (verbose)
             print_bytes_hex(hash_key_pointer, hash_api.out_size, true);
-        key_db_add(key_db, hash_api.out_size, hash_key_pointer, verbose);
-        local_hash_count++;
+        if (key_db_add(key_db, hash_api.out_size, hash_key_pointer, verbose))
+            local_hash_count++;
+        else
+        {
+            free(line);
+            return -1;
+        }
     }
     free(line);
     return local_hash_count;
 }
 
-unsigned int binary_process_file(HashAPI hash_api, void *ctx, KeyDB key_db, bool verbose, const char *path, FILE *file_ptr)
+int binary_process_file(HashAPI hash_api, void *ctx, KeyDB key_db, bool verbose, const char *path, FILE *file_ptr)
 {
     unsigned char *hash_key_pointer = malloc(hash_api.out_size);
+
+    if (hash_key_pointer == nullptr)
+    {
+        fprintf(stderr, "Failed to allocate bytes for hash key for a file.\n");
+        return -1;
+    }
+
     if (binary_hash(hash_api, ctx, file_ptr, hash_key_pointer) != 0)
     {
         perror(path);
         fprintf(stderr, "Error: Could not hash %s.\n", path);
+        free(hash_key_pointer);
         return 0;
     }
     else
     {
         if (verbose)
             print_bytes_hex(hash_key_pointer, hash_api.out_size, true);
-        key_db_add(key_db, hash_api.out_size, hash_key_pointer, verbose);
-        return 1;
+        if (key_db_add(key_db, hash_api.out_size, hash_key_pointer, verbose))
+            return 1;
+        else
+            return -1;
     }
 }
 
@@ -210,9 +232,18 @@ unsigned int process_file(HashAPI hash_api, void *ctx, KeyDB key_db, const char 
     return returnval;
 }
 
-void process_files(HashAPI hash_api, KeyDB key_db, const char *filepaths[], unsigned int nfiles, unsigned long *valid_hashes_count_pointer, bool verbose, int mode)
+int process_files(HashAPI hash_api, KeyDB key_db, const char *filepaths[], unsigned int nfiles, unsigned long *valid_hashes_count_pointer, bool verbose, int mode)
 {
     void *ctx = malloc(hash_api.ctx_size);
+
+    int process_file_returnval = 0;
+
+    if (ctx == nullptr)
+    {
+        fprintf(stderr, "Failed to allocate bytes for ctx.\n");
+        return -1;
+    }
+
     progressbar *progress;
     if (!verbose)
         progress = progressbar_new("Hashing data", nfiles);
@@ -223,11 +254,22 @@ void process_files(HashAPI hash_api, KeyDB key_db, const char *filepaths[], unsi
             printf("Hashing data from file: %s\n", filepaths[i]);
         else
             progressbar_inc(progress);
-        *valid_hashes_count_pointer += process_file(hash_api, ctx, key_db, filepaths[i], verbose, mode);
+
+        if ((process_file_returnval = process_file(hash_api, ctx, key_db, filepaths[i], verbose, mode)) < 0)
+        {
+            if (!verbose)
+                progressbar_finish(progress);
+            free(ctx);
+            return -2;
+        }
+        else
+            *valid_hashes_count_pointer += process_file_returnval;
     }
     if (!verbose)
         progressbar_finish(progress);
     free(ctx);
+
+    return 0;
 }
 
 bool is_valid_out_size(size_t out_size)
@@ -239,6 +281,14 @@ bool is_valid_out_size(size_t out_size)
     }
     return true;
 }
+
+static void close_handle(void **h)
+{
+    if (*h)
+        dlclose(*h);
+}
+
+static void free_key_db(KeyDB *kdb) { destroy_key_db(*kdb); }
 
 int main(int argc, char *argv[])
 {
@@ -261,27 +311,25 @@ int main(int argc, char *argv[])
 
     read_filepaths(argv, nfiles, filepaths);
 
-    void *handle = open_handle(hashpath);
-
+    [[gnu::cleanup(close_handle)]] void *handle = open_handle(hashpath);
     const HashAPI hash_api = get_hash_api(handle);
 
     if (!is_valid_out_size(hash_api.out_size))
-    {
-        dlclose(handle);
         return 5;
-    }
 
     unsigned long valid_hashes_count = 0;
 
-    KeyDB key_db = create_key_db(hash_api, mode, nfiles, verbose);
+    [[gnu::cleanup(free_key_db)]] KeyDB key_db = create_key_db(hash_api, mode, nfiles, verbose);
+    if (key_db.table == nullptr || key_db.node_count_ptr == nullptr)
+    {
+        fprintf(stderr, "Failed to allocate memory for Key DB.\n");
+        return 7;
+    }
 
-    process_files(hash_api, key_db, filepaths, nfiles, &valid_hashes_count, verbose, mode);
+    if (process_files(hash_api, key_db, filepaths, nfiles, &valid_hashes_count, verbose, mode) < 0)
+        return 8;
 
     analyse(key_db, hash_api, valid_hashes_count, nfiles, table, details);
-
-    destroy_key_db(key_db);
-
-    dlclose(handle);
 
     return 0;
 }
