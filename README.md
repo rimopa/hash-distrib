@@ -47,7 +47,7 @@ The program's sequence in a much more deep insight:
     
     - `size_t ctx_size`: bytes needed for the functioning of the hash algorithm to preserve state between `update` calls.
     
-    - `size_t out_size`: size of your returned key in bytes. Must be >= 2 and <= 256. Explained in final note.
+    - `size_t out_size`: size of your returned key in bytes. Must be > 0 and < 256. Explained in final note.
     
     - `void (*init)(void *ctx)`: function to clean and set `ctx`'s to its initial state, ready for `update` to operate over it.
     
@@ -56,15 +56,15 @@ The program's sequence in a much more deep insight:
     - `void (*final)(void *ctx, unsigned char *out)`: function which reads from `ctx`, (produces if necessary) and writes the final key (`out_size` bytes long) at `out`.
 
 3. Set up `keys_db`
-    Before hashing any file, there must be somewhere to put the returned hashes. This is exactly `key_sb`'s role here, and all of its functionality is packed in `hash_distribution.c`.
+    Before hashing any file, there must be somewhere to put the returned keys. This is exactly `key_sb`'s role here.
 
-    Here `create_keys_db()` (found in `hash_distribution.c`) is called, and evaluates whether it should use a hash table for storing the keys, or, if there are not many files, use a simple unbucketed array instead.
+    Here `create_keys_db()` (found in `hash_distribution.c`) is called, and evaluates whether it should use a hash table for storing the keys, or, if there are not many files, use a simpler unbucketed array instead.
 
 4. Preparing files or lines to be hashed
     
-    A progressbar that will follow the hashing is created with `progressbar_new()`, (from [this project](https://github.com/doches/progressbar)).
+    A progressbar (from [this project](https://github.com/doches/progressbar)) that will follow the hashing is set up, so that users in a terminal can visually see the hashes being done with each file. The verbose flag disables this, althought it gives much more detail instead.
 
-    Each file is safely opened with `safe_fopen()`.
+    Each file is safely opened with `safe_fopen()`, which checks for opening errors.
     
     Additionaly, if the line mode was set in the arguments, `process_lines()` is called and `getline()` is used to read each line.
 
@@ -76,11 +76,13 @@ The program's sequence in a much more deep insight:
 
    Aditionally, `out_size` is used to allocate `hash_key`, which will be used by the hash function to write its final hash.
 
-   First, `hash_api.init()` is called to clean up `ctx` and set everything to its initial value.
+   Then, the procedure explained above is followed for retrieving a valid hash key from the hash function:
 
-   Then, `hash_api.update()` is called once or more, depending on the file/line's size.
+   - First, `hash_api.init()` is called to clean up `ctx` and set everything to its initial value.
 
-   Finally, `hash_api.final()` is called for the hash function to write its final key to `hash_key`.
+   - Then, `hash_api.update()` is called once or more, depending on the file/line's size.
+
+   - Finally, `hash_api.final()` is called for the hash function to write its final key to `hash_key`.
 
 6. Adding to `key_db`
    
@@ -98,7 +100,7 @@ The program's sequence in a much more deep insight:
     
         If it's not found, then the last node (which was previously pointing to nullptr) is set to point towards a new node with this newfound key and a `count` of 1.
    
-   - In case `key_db_arr_add()` is chosen instead, the sequence is much simpler. The array is checked for the same key until `node_count`, the count is incremented by 1 if found, otherwise a new node is added at index `node_count`, with the key in question, and `node_count` incremented by 1 for the next one.
+   - In case `key_db_arr_add()` is chosen instead, the sequence is much simpler. The array is checked for the same key until `node_count`. If found, the count is incremented by 1 in the key's node. Otherwise, a new node is added at index `node_count`, with the newfound key and `node_count` incremented by 1 for the next iteration to ocurr correctly.
 
 7. Analysing
    
@@ -106,19 +108,19 @@ The program's sequence in a much more deep insight:
 
    After a very general performance description, `analyse()` tries to signal curious things about the hash's distribution, for example, if all the keys were the same or all of them were different (no collisions).
 
-   If neither `-d` nor `-t` were passed as options, it may decide which is better for your distribution and print it for you.
+   If neither `-d` nor `-t` were passed as options, `hash-distrib` may decide which is better for your distribution and display it for you.
 
    Then, it goes thruogh each step:
 
-   - `-d` Details: a simple loop that cycles through `key_db` and prints each key next to its corresponding key in hexadecimal, which is the most commonly used string representation of hashes.
+   - `-d` Details: a simple loop that cycles through `key_db` and prints each key next to its corresponding key in hexadecimal, which is the most commonly representation of hash keys in strings.
    
    - `-t`, Table:
         
         First, `create_count_of_counts()` is called, which creates a new hash table called `count_of_counts` using [this project](https://github.com/troydhanson/uthash).
 
-        `count_of_counts` does not sound very intuitive, but does exaclty what its name says: counting counts.
+        `count_of_counts` does not sound very intuitive, but does exactly what its name says: counting counts.
 
-        The function iterates all over `key_db` to count how many times each count appeared. For example, it may find one key that appeared twice, so it stores `2 1`, and then another, and another one that appeared twice are found, so the count of times that a key appeared twice is incremented to 3 (`2 3`).
+        The function iterates all over `key_db` to count how many times each count appeared. For example, it may find one key that appeared three times (its `count` is 3), so it stores `1 3`, and then finds another that appeared three times, so the amount of keys that had an return count of 3 is incremented to 2 (`2 3`).
 
         This is finally displayed in a table with that same structure. For example:
 
@@ -136,18 +138,46 @@ The program's sequence in a much more deep insight:
         Note: `count_of_counts` is freed in this same step.
     - Bonus mean:
   
-        And additional mean is calculated taking all the sum of the counts in `key_db` and dividing them by `distinct_keys_count` in `print_mean()`.
+        And additional mean value is calculated taking all the sum of the counts in `key_db` and dividing them by `distinct_keys_count` in `print_mean()`.
 
-        The less the keys were repeated, the closer the mean is going to be 1. Conversely, the more they were repeated, the closer the mean is going to be to the number of hashes that were made.
+        The less the keys were repeated, the closer the mean is going to be 1. Conversely, the more they were repeated, the bigger and closer it is going to be to the number of hashes that were made.
 
 8. Cleanup
    
-   After all has been done and hopefully there were no encountered problems, a final cleanup is done.
+   After all that has been done and hopefully `hash-distrib` encountered no problems, a final cleanup is done.
 
    - `key_db` is freed using `destroy_key_db()`, which iterates each node and frees it.
    - `libhash.so`'s handle is closed.
 
 
-Some additional notes:
-- This program probably doesn't run on Microsoft Windows as shared libraries are managed differently there, and I'm not sure about macOS, as I don't have one to try with.
-- `out_size` is maxed to 256 because 
+#### Some design choices I had to make
+
+##### `out_size` maximum value
+I set `out_size` a maximum of 255 (2^8 - 1) bytes.
+
+This is because the size of the hash table used in `key_db` is set up with `out_size`^2 buckets, so a 256-byte-sized key would generate a hash table of (2^8)^2 or 2^16 buckets.
+
+2^16 - 1 is the maximum value that can be garanteedly represented with an `unsigned int` (read [here](https://en.wikipedia.org/wiki/C_data_types)), the type which stores the size.
+
+So, a key size of 256 bytes (or more) may generate a size of 2^16 or more, which could overflow the `key_db.size`, which is extremely dangerous and may cause disaster down the road, specially if it's set to exactly 0.
+
+However, the hash function with the longest key in [this list](https://en.wikipedia.org/wiki/List_of_hash_functions) is [FNV](https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function) with the 1024 bit variant. However, that's only 128 bytes, so I do not feel like the rewrite would be necesasry.
+
+In conclusion, Adding support for >=256 hashes would require a rewriting logic of `key_db`, which I don't feel necessary because I haven't seen hash keys that long.
+
+#### compiling + shared library vs. just compiling everything together
+
+One of the first decisions I had to make was the way `hash-distrib` would communicate with the provided hash functions.
+The main two options were compiling once and using shared libraries as plugins _or_ using an `#include` at the start of one of the programs and call I'd need from the other one from there. And as this is a tool for begineers, this decision was extremely important to take correctly.
+
+So I made a pros and cons list.
+
+|      | compiled + .so                                                                                                                   | one single compile                                                                                            |
+| ---- | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| pros | No need to worry about variable names overlapping, I like the plugin logic, opportunity to learn of how to use shared libraries. | One single compile, easier compatibility between platforms, may be faster becuase it's all compiled together. |
+| cons | May need to explain compiler flags, difficult to make compatible between platforms.                                              | Variable names may overlap, slower to compile.                                                                |
+
+In the end, what really convinced me to go for compiled + .so is the opportunity to learn to manage shared libraries and its logic. Either way, if it's complicated for some begineers to compile their functions into shared libraries, I might make the Makefile more friendly and tell them to just run that, which simplifies it a lot.
+
+##### Compatibility
+This program probably doesn't run on Microsoft Windows as shared libraries are managed differently there, and I'm not sure about macOS, as I don't have one to try with.
