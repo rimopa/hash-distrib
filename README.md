@@ -31,7 +31,7 @@ A quick way to try out hash-distrib.
     git clone --recursive https://github.com/rimopa/hash-distrib
     ```
 
-   1. In the repo folder, build the provided algorithm of your choice as a shared library. For example, SHA256. This will let hash-distrib access its functions on the fly.
+   1. In the repo folder, build the provided algorithm of your choice as a shared library. For example, SHA-256. This will let hash-distrib access its functions on the fly.
      ```sh
      cd hash-distrib
      gcc -shared -fPIC hash-algorithms/sha256.c -o libsha256.so
