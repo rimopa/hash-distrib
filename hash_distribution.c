@@ -1,7 +1,6 @@
 #include "hash_distribution.h"
 #include <stdio.h>
 #include <stdint.h>
-#include <stdbool.h>
 #include "uthash/src/uthash.h"
 
 #include "hash_api.h"

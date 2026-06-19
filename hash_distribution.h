@@ -3,7 +3,6 @@
 
 #include <stdio.h>
 #include <stdint.h>
-#include <stdbool.h>
 #include "uthash/src/uthash.h"
 
 #include "hash_api.h"
@@ -27,7 +26,7 @@ typedef struct Node
 typedef struct
 {
     Node **table;
-    const unsigned int size;
+    const uint16_t size;
     const int method; // 0 = hash table with buckets, 1 = array
     unsigned long *node_count_ptr;
 } KeyDB;
