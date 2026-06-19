@@ -1,5 +1,5 @@
 CC       := clang
-CFLAGS   := -Wall -Wextra -Werror -std=c23
+CFLAGS   := -Wall -Wextra -Werror -std=c23 -pedantic
 CPPFLAGS := -Iprogressbar/include/progressbar
 LDFLAGS  := -lncurses
 
