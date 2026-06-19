@@ -1,8 +1,8 @@
 [submodule "progressbar"]
-	path = progressbar
+	path = src/progressbar/progressbar
 	url = https://github.com/doches/progressbar
 [submodule "uthash"]
-	path = uthash
+	path = src/uthash/uthash
 	url = https://github.com/troydhanson/uthash
 [submodule "hash-algorithms"]
 	path = hash-algorithms
