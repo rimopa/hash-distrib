@@ -1,6 +1,5 @@
 #define _XOPEN_SOURCE 700
 #include <dlfcn.h>
-#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
