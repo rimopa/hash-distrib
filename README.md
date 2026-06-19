@@ -27,29 +27,29 @@ Examples:
 A quick way to try out hash-distrib.
 
 1. Clone the repo.
-  ```sh
-  git clone --recursive https://github.com/rimopa/hash-distrib
-  ```
+    ```sh
+    git clone --recursive https://github.com/rimopa/hash-distrib
+    ```
 
-2. In the repo folder, build the provided algorithm of your choice as a shared library. For example, SHA256. This will let hash-distrib access its functions on the fly.
-  ```sh
-  cd hash-distrib
-  gcc -shared -fPIC hash-algorithms/sha256.c -o libsha256.so
-  ```
+   1. In the repo folder, build the provided algorithm of your choice as a shared library. For example, SHA256. This will let hash-distrib access its functions on the fly.
+     ```sh
+     cd hash-distrib
+     gcc -shared -fPIC hash-algorithms/sha256.c -o libsha256.so
+     ```
 
-3. If you don't have it already, get the compiled hash-distrib.
-  ```sh
-  make hash-distrib
-  ```
+1. If you don't have it already, get the compiled hash-distrib.
+    ```sh
+    make hash-distrib
+    ```
 
-4. Run hash-distrib with your dataset!
-  ```
-  ./hash-distrib ./libsha256.so my_data_folder/data.dat other_data/2nd_data.png …
-  ```
-  or, if you'd prefer to hash lines of text instead of whole files:
-  ```
-  ./hash-distrib ./libsha256.so -m line dataset1/poem.txt even_more_data/datacenter.csv …
-  ```
+2. Run hash-distrib with your dataset!
+    ```
+    ./hash-distrib ./libsha256.so my_data_folder/data.dat other_data/2nd_data.png …
+    ```
+    or, if you'd prefer to hash lines of text instead of whole files:
+    ```
+    ./hash-distrib ./libsha256.so -m line dataset1/poem.txt even_more_data/datacenter.csv …
+    ```
 
 ## Adapting your hash
 
@@ -99,41 +99,36 @@ Once you've adapted your functions:
 
 1. Add the hash_api.h header
 
-```c
-#include "hash_api.h"
-```
+    ```c
+    #include "hash_api.h"
+    ```
 
 2. Write your hash data into an API like this to return:
 
-```c
-static const HashAPI api = {
-    .name = "awesome_algorithm",
+    ```c
+    const HashAPI hash_api = {
+        .name = "awesome_algorithm",
 
-    .ctx_size = sizeof(awa_ctx),
-    .out_size = AWESOME_OUT_SIZE,
+        .ctx_size = sizeof(awa_ctx),
+        .out_size = AWESOME_OUT_SIZE,
 
-    .init = awa_init,
-    .update = awa_update,
-    .final = awa_final};
+        .init = awa_init,
+        .update = awa_update,
+        .final = awa_final};
+    ```
+Note: When you're executing the program, hash-distrib will access to `hash_api` by its name. So, it is very important that your `HashAPI` is called exactly that.
 
-HashAPI hash_api(void)
-{
-    return api;
-}
-```
-Note: When you're executing the program, hash-distrib will do runtime access to `hash_api(void)` by its name. So, it is very important that the function which returns your `HashAPI` is called exactly `hash_api(void)`.
+1. Compile your program as a shared library. This will let hash-distrib access `hash_api` on the fly.
 
-3. Compile your program as a shared library. This will let hash-distrib access `hash_api()` (and by extension, your API) on the fly.
+    ```sh
+    gcc -shared -fPIC awesome_algo.c -o libawa.so
+    ```
 
-```sh
-gcc -shared -fPIC awesome_algo.c -o libawa.so
-```
+2. Get your dataset analysed!
 
-4. Get your dataset analysed!
-
-```sh
-./hash-distrib ./libawa.so testdata.xyz testpicture.png …
-```
+    ```sh
+    ./hash-distrib ./libawa.so testdata.xyz testpicture.png …
+    ```
 
 ## Used resources
 
