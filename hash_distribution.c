@@ -466,6 +466,7 @@ void analyse(KeyDB key_db, HashAPI hash_api, unsigned long valid_hashes_count, u
         printf("\nWow, you got exactly the same key every time!\n"
                "If you plan to use a hash table for this kind of dataset and hash function,\n"
                "all the data is going to fall into the same bucket, which would defeat the purpose of the hash table.\n");
+        details = true;
     }
     else if (distinct_keys_count == valid_hashes_count)
     {
