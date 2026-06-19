@@ -1,14 +1,14 @@
 CC       := clang
 CFLAGS   := -Wall -Wextra -Werror -std=c23 -pedantic
-CPPFLAGS := -Iprogressbar/include/progressbar
+CPPFLAGS := -Isrc/progressbar/include/progressbar
 LDFLAGS  := -lncurses
 
 DEBUGGER := gdb
 
 TARGET   := hash-distrib
 NAMEDTARGET := hash-distrib-varnamed
-SRC      := main.c
-ADDITIONAL := hash_distribution.c readers.c
+SRC      := src/main.c
+ADDITIONAL := src/hash_distribution.c src/readers.c
 
 HASHLIB  := libhash.so
 HASHSRC  ?= hash-algorithms/sha256.c
@@ -16,7 +16,7 @@ HASHSRC  ?= hash-algorithms/sha256.c
 ARGS ?= -m binary
 TESTDATA ?= testdata/*
 
-PROGRESSBAR_DIR := progressbar
+PROGRESSBAR_DIR := src/progressbar
 PROGRESSBAR_OBJ := progressbar.o
 
 .PHONY: all test testv testl testvl debug debugl clean
