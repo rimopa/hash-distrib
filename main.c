@@ -12,7 +12,7 @@
 #include "readers.h"
 #include "hash_api.h"
 
-#define HASH_API_FUNC_NAME "hash_api"
+#define HASH_API_NAME "hash_api"
 #define OUT_SIZE_LOWER_BOUND 1
 #define OUT_SIZE_UPPER_BOUND 255
 
@@ -37,13 +37,13 @@ usage(const char *prog)
 HashAPI get_hash_api(void *handle)
 {
     char *error;
-    HashAPI (*hash_api_func)(void) = dlsym(handle, HASH_API_FUNC_NAME);
+    HashAPI *hash_api = dlsym(handle, HASH_API_NAME);
     if ((error = dlerror()) != nullptr)
     {
         fputs(error, stderr);
         exit(4);
     }
-    return hash_api_func();
+    return *hash_api;
 }
 
 void *open_handle(const char *hashpath)
